@@ -9,7 +9,6 @@ import { useState } from "react";
 import BookingMenu from "../../_BookingMenu/BookingMenu";
 import { Checkbox } from "@/app/_components/ui/checkbox";
 import useBarbershopServices from "../../_ServiceComponent/model";
-import { useDateStore, useHourStore } from "../../_hooks/useDate";
 
 interface IServiceCardProps {
   service: Service;
