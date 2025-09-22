@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { redirect } from "next/navigation";
 import BarbershopServices from "./_components/_ServiceComponent/BarbershopServices";
-import useBarbershopServices from "./_components/_ServiceComponent/model";
 import { findUniqueBarberShop } from "@/app/_actions/barberShop";
 
 interface IBarberShopDetailsPageProps {
