@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import useBarbershopServices from "../../_ServiceComponent/model";
 import { useLoading } from "@/app/_providers/loading";
-import { useSession } from "next-auth/react";
+import { useAuthGuard } from "@/app/_hooks/useAuthGuard";
 import { Booking } from "@prisma/client";
 import { generateDayTimeList } from "../../../_helpers/hours";
 import { setHours, setMinutes } from "date-fns";
@@ -30,7 +30,9 @@ export const dayBookingsStore = create<IDayBookingsStore>((set) => ({
 }));
 
 const useBookingMenu = () => {
-  const { data } = useSession();
+  const { user, isAuthenticated, checkAuthAndRedirect } = useAuthGuard({
+    requireAuth: false, // Não redireciona automaticamente, apenas verifica
+  });
   const { isLoading } = useLoading();
 
   const { hour, setHour, date, setDate } = useBarbershopServices();
@@ -71,7 +73,7 @@ const useBookingMenu = () => {
   );
 
   const validateBookingData = () => {
-    if (!hour || !date || !data?.user) {
+    if (!hour || !date || !user) {
       console.error("ERROR: handleBookingSubmit values not found");
       return false;
     }
@@ -92,6 +94,9 @@ const useBookingMenu = () => {
     isLoading,
     validateBookingData,
     formatBookingDate,
+    user,
+    isAuthenticated,
+    checkAuthAndRedirect,
   };
 };
 

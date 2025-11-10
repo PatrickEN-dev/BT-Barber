@@ -30,7 +30,6 @@ interface IBookingMenuProps {
 
 const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   const { push } = useRouter();
-  const { data } = useSession();
   const { isLoading, setIsLoading } = useLoading();
 
   const { setSheetIsOpen, sheetIsOpen, selectedServices, hour, setHour, date, setDate } =
@@ -43,6 +42,8 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
     setDayBookings,
     handleHourClick,
     handleDateClick,
+    user,
+    checkAuthAndRedirect,
   } = useBookingMenu();
 
   useEffect(() => {
@@ -62,7 +63,7 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
       await saveBooking({
         barbershopId: barbershop.id,
         serviceId: service.id,
-        userId: (data?.user as any).id,
+        userId: (user as any).id,
         date: newDateFormatted,
       });
     }
@@ -82,6 +83,11 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   };
 
   const handleBookingSubmit = async () => {
+    // Verifica se o usuário está autenticado antes de prosseguir
+    if (!checkAuthAndRedirect()) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (!validateBookingData()) return;

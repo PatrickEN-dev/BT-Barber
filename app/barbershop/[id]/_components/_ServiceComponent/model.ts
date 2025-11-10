@@ -6,6 +6,7 @@ import { Session } from "next-auth";
 import { create } from "zustand";
 import { useDateStore, useHourStore } from "../_hooks/useDate";
 import { findUniqueBarberShop } from "@/app/_actions/barberShop";
+import { useAuthGuard } from "@/app/_hooks/useAuthGuard";
 
 interface IStore {
   sheetIsOpen: boolean;
@@ -36,6 +37,7 @@ const useBarbershopServices = () => {
   const { selectedServices, setSelectedServices } = useSelectedServices();
   const { hour, setHour } = useHourStore();
   const { date, setDate } = useDateStore();
+  const { isAuthenticated, redirectToLogin } = useAuthGuard({ requireAuth: false });
 
   const handleVerifyToSignInClick = async (session: Session): Promise<void> => {
     await verifyToSignIn({ value: !!session?.user, signInValue: "google" });
@@ -46,8 +48,11 @@ const useBarbershopServices = () => {
     return result;
   };
 
-  const openSheetAndVerifyUser = async (session: any) => {
-    if (!session.user) await handleVerifyToSignInClick(session?.user);
+  const openSheetAndVerifyUser = () => {
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
     setSheetIsOpen(true);
   };
 

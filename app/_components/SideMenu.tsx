@@ -27,7 +27,7 @@ const SideMenu = () => {
               <AvatarImage src={data.user?.image ?? ""} />
             </Avatar>
 
-            <h2 className="font-bold">{data.user.name}</h2>
+            <h2 className="font-bold">{data.user?.name}</h2>
           </div>
 
           <Button type="button" variant="secondary" size="icon">

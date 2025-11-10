@@ -8,6 +8,7 @@ import { StarIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuthGuard } from "@/app/_hooks/useAuthGuard";
 
 interface IBarberShopCardProps {
   barberShop: Barbershop;
@@ -15,7 +16,15 @@ interface IBarberShopCardProps {
 
 const BarberShopCard = ({ barberShop }: IBarberShopCardProps) => {
   const { push } = useRouter();
-  const handleBookingClick = () => push(`/barbershop/${barberShop.id}`);
+  const { isAuthenticated, redirectToLogin } = useAuthGuard({ requireAuth: false });
+
+  const handleBookingClick = () => {
+    if (!isAuthenticated) {
+      redirectToLogin();
+      return;
+    }
+    push(`/barbershop/${barberShop.id}`);
+  };
 
   return (
     <Link href={`/barbershop/${barberShop.id}`}>

@@ -21,7 +21,7 @@ const BarbershopServices = ({ session, barbershopData }: IBarbershopServicesProp
       <BarbershopServiceCardList {...{ barbershopData }} />
 
       <div className="items-center w-full flex justify-center pb-8 pt-2">
-        <Button className="w-56" type="button" onClick={() => openSheetAndVerifyUser(session)}>
+        <Button className="w-56" type="button" onClick={openSheetAndVerifyUser}>
           Reservar
         </Button>
       </div>

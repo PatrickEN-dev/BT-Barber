@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import TimeListComponent from "../../_BookingMenu/TimeListComponent";
+import { useAuthGuard } from "@/app/_hooks/useAuthGuard";
+import { AuthRequiredWrapper } from "@/app/_components/AuthRequiredWrapper";
 
 interface Props {
   barber: Barber;
@@ -9,8 +11,15 @@ interface Props {
 
 export const BarbersPageCards = ({ barber }: Props) => {
   const [timeList] = useState<string[]>(generateMockTimes());
-
   const [selectedTime, setSelectedTime] = useState<string | undefined>();
+  const { isAuthenticated } = useAuthGuard({ requireAuth: false });
+
+  const handleTimeSelection = (time: string) => {
+    if (!isAuthenticated) {
+      return;
+    }
+    setSelectedTime(time);
+  };
 
   return (
     <article className="bg-neutral-800 rounded-2xl p-4 flex flex-col sm:flex-row w-full max-w-2xl mx-auto">
@@ -41,11 +50,13 @@ export const BarbersPageCards = ({ barber }: Props) => {
         </p>
 
         <div className="mt-auto pt-3">
-          <TimeListComponent
-            timeList={timeList}
-            hour={selectedTime}
-            handleHourClick={(t) => setSelectedTime(t)}
-          />
+          <AuthRequiredWrapper>
+            <TimeListComponent
+              timeList={timeList}
+              hour={selectedTime}
+              handleHourClick={handleTimeSelection}
+            />
+          </AuthRequiredWrapper>
         </div>
       </div>
     </article>
