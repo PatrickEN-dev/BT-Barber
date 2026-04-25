@@ -30,7 +30,9 @@ const BookingsPage = async () => {
         <section className="px-5 py-6">
           <h1 className="text-xl font-bold mb-6">Agendamentos</h1>
 
-          <BookingList bookings={confirmedBookings} title="Confirmados" />
+          {confirmedBookings.length > 1 && (
+            <BookingList bookings={confirmedBookings} title="Confirmados" />
+          )}
 
           <div className="mt-6">
             <BookingList bookings={finishedBookings} title="Finalizados" />

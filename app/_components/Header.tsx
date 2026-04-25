@@ -20,6 +20,7 @@ const Header = () => {
               height={18}
               width={120}
               style={{ height: "18px", width: "120px" }}
+              sizes="100vw"
             />
           </Link>
           <Sheet>

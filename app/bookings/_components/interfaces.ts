@@ -1,14 +1,10 @@
-import { Booking, Prisma } from "@prisma/client";
+import { Booking } from "@prisma/client";
+import type { SerializedBookingWithRelations } from "@/app/_lib/serializers";
 
 export interface IBookingProps {
   booking: Booking;
 }
 
 export interface IBookingBarberShopServiceProps {
-  booking: Prisma.BookingGetPayload<{
-    include: {
-      service: true;
-      barbershop: true;
-    };
-  }>;
+  booking: SerializedBookingWithRelations;
 }

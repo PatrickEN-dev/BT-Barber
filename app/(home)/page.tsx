@@ -8,31 +8,15 @@ import { authOptions } from "../_lib/auth";
 import { Barbershop } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import InputSearch from "../_components/InputSearch";
+import { findConfirmedBookings } from "../_actions/booking";
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
 
   const [barbershops, recommendedBarbershops, confirmedBookings] = await Promise.all([
     db.barbershop.findMany({}),
-    db.barbershop.findMany({
-      orderBy: {
-        id: "asc",
-      },
-    }),
-    session?.user
-      ? db.booking.findMany({
-          where: {
-            userId: (session.user as any).id,
-            date: {
-              gte: new Date(),
-            },
-          },
-          include: {
-            service: true,
-            barbershop: true,
-          },
-        })
-      : Promise.resolve([]),
+    db.barbershop.findMany({ orderBy: { id: "asc" } }),
+    session?.user ? findConfirmedBookings((session.user as any).id) : Promise.resolve([]),
   ]);
 
   return (
@@ -60,7 +44,7 @@ export default async function Home() {
             <h2 className="pl-5 text-xs mb-3 uppercase text-gray-400 font-bold">Agendamentos</h2>
             <li className="px-5 flex gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {confirmedBookings.map((booking) => (
-                <BookingCard key={booking.id} booking={booking as any} />
+                <BookingCard key={booking.id} booking={booking} />
               ))}
             </li>
           </>

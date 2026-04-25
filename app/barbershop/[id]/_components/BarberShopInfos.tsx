@@ -7,10 +7,10 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 interface IBarberShopInfosProps {
-  barberShop: Barbershop;
+  barbershopData?: Barbershop;
 }
 
-const BarberShopInfos = ({ barberShop }: IBarberShopInfosProps) => {
+const BarberShopInfos = ({ barbershopData }: IBarberShopInfosProps) => {
   const { replace } = useRouter();
   return (
     <section>
@@ -34,20 +34,21 @@ const BarberShopInfos = ({ barberShop }: IBarberShopInfosProps) => {
           <MenuIcon />
         </Button>
         <Image
-          src={barberShop.imageUrl}
-          alt={barberShop.name}
+          src={barbershopData?.imageUrl as any}
+          alt={barbershopData?.name as any}
           fill
           className="object-cover opacity-75"
+          sizes="100vw"
         />
-        <h1>{barberShop.name}</h1>
+        <h1>{barbershopData?.name}</h1>
       </div>
 
       <div className="px-5 pt-3 pb-6 border-b border-solid border-secondary">
-        <h1 className="text-xl font-bold">{barberShop.name}</h1>
+        <h1 className="text-xl font-bold">{barbershopData?.name}</h1>
 
         <div className="flex item-center gap-1 mt-2">
           <MapPinIcon className="text-primary" size={18} />
-          <p className="text-sm">{barberShop.address}</p>
+          <p className="text-sm">{barbershopData?.address}</p>
         </div>
 
         <div className="flex item-center gap-1 mt-2">

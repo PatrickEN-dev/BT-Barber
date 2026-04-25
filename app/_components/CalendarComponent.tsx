@@ -3,15 +3,18 @@
 import React from "react";
 import { Calendar } from "./ui/calendar";
 import { ptBR } from "date-fns/locale";
+import useBarbershopServices from "../barbershop/[id]/_components/_ServiceComponent/model";
 
 interface ICalendarComponentProps {
-  date: Date | undefined;
-  setDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
-  newDate: Date;
+  // date: Date | undefined;
+  // setDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
+  // newDate: Date;
   handleDateClick: (date: Date | undefined) => void;
 }
 
-const CalendarComponent = ({ date, newDate, handleDateClick }: ICalendarComponentProps) => {
+const CalendarComponent = ({ handleDateClick }: ICalendarComponentProps) => {
+  const { date } = useBarbershopServices();
+  const newDate = new Date();
   return (
     <Calendar
       mode="single"

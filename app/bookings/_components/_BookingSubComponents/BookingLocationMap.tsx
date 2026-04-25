@@ -10,7 +10,7 @@ const BookingLocationMap = ({ booking }: IBookingBarberShopServiceProps) => {
   const { name, imageUrl, address, id } = booking.barbershop;
   return (
     <section className="relative h-[180px] w-full mt-6">
-      <Image src="/barbershop-map.png" fill alt={name} className="object-cover" />
+      <Image src="/barbershop-map.png" fill alt={name} className="object-cover" sizes="100vw" />
 
       <div className="w-full absolute bottom-4 left-0 px-5">
         <Card>

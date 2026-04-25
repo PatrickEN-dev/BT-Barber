@@ -27,8 +27,8 @@ export default function RootLayout({ children }: IChildrenComponent) {
             <Toaster />
           </AuthProvider>
         </LoadingProvider>
-        <SpeedInsights />
-        <Analytics />
+        {/* <SpeedInsights />
+        <Analytics /> */}
       </body>
     </html>
   );

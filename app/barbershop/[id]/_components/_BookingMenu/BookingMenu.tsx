@@ -2,14 +2,12 @@
 
 import CalendarComponent from "@/app/_components/CalendarComponent";
 import { SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/app/_components/ui/sheet";
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { generateDayTimeList } from "../../_helpers/hours";
+import { useEffect } from "react";
 import TimeListComponent from "./TimeListComponent";
-import { Barbershop, Booking, Service } from "@prisma/client";
+import { Barbershop } from "@prisma/client";
 import { Button } from "@/app/_components/ui/button";
 import ServiceCardDetails from "./ServiceCardDetails";
-import { useSession } from "next-auth/react";
-import { format, setHours, setMinutes } from "date-fns";
+import { format } from "date-fns";
 import { saveBooking } from "../../_actions/saveBooking";
 import { useLoading } from "@/app/_providers/loading";
 import { Loader2 } from "lucide-react";
@@ -17,104 +15,75 @@ import { toast } from "sonner";
 import { ptBR } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { getDayBookings } from "../../_actions/getDayBookings";
+import useBarbershopServices from "../_ServiceComponent/model";
+import useBookingMenu from "./_hooks/bookingMenuHook";
 
 interface IBookingMenuProps {
-  service: Service;
   barbershop: Barbershop;
-  hour: string | undefined;
-  setHour: Dispatch<SetStateAction<string | undefined>>;
-  date: Date | undefined;
-  setDate: Dispatch<SetStateAction<Date | undefined>>;
-  newDate: Date;
-  sheetIsOpen: boolean;
-  setSheetIsOpen: Dispatch<SetStateAction<boolean>>;
 }
 
-const BookingMenu = ({
-  service,
-  barbershop,
-  hour,
-  setHour,
-  date,
-  setDate,
-  newDate,
-  sheetIsOpen,
-  setSheetIsOpen,
-}: IBookingMenuProps) => {
+const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   const { push } = useRouter();
-  const { data } = useSession();
   const { isLoading, setIsLoading } = useLoading();
-  const [dayBookings, setDayBookings] = useState<Booking[]>([]);
-  const handleHourClick = (time: string) => setHour(time);
 
-  const hourSplitted = hour ? Number(hour?.split(":")[0]) : 0;
-  const minuteSplitted = hour ? Number(hour?.split(":")[1]) : 0;
+  const {
+    setSheetIsOpen,
+    selectedServices,
+    clearSelectedServices,
+    selectedBarber,
+    hour,
+    setHour,
+    date,
+    setDate,
+  } = useBarbershopServices();
+
+  const {
+    timeList,
+    validateBookingData,
+    formatBookingDate,
+    setDayBookings,
+    handleHourClick,
+    handleDateClick,
+    user,
+    checkAuthAndRedirect,
+  } = useBookingMenu();
 
   useEffect(() => {
-    if (!date) return console.error("Theren't date on useEffect getDayBookings");
+    if (!date || !selectedBarber) return;
 
     const refreshAvailableHours = async () => {
-      // preciso passar barberId no futuro
-      const dayBookingsData = await getDayBookings(barbershop.id, date);
+      const dayBookingsData = await getDayBookings(barbershop.id, date, selectedBarber.id);
       setDayBookings(dayBookingsData);
     };
 
     refreshAvailableHours();
-  }, [date, barbershop.id]);
-
-  const handleDateClick = (date: Date | undefined) => {
-    setDate(date);
-    setHour(undefined);
-  };
-
-  const timeList = useMemo(
-    () =>
-      date
-        ? generateDayTimeList(date).filter((time) => {
-            const hourSplitted = time ? Number(time?.split(":")[0]) : 0;
-            const minuteSplitted = time ? Number(time?.split(":")[1]) : 0;
-
-            const booking = dayBookings.find((booking) => {
-              const bookingHour = booking.date.getHours();
-              const bookingMinutes = booking.date.getMinutes();
-
-              return bookingHour === hourSplitted && bookingMinutes === minuteSplitted;
-            });
-
-            if (!booking) return true;
-
-            return false;
-          })
-        : [],
-    [date, dayBookings]
-  );
-
-  const validateBookingData = () => {
-    if (!hour || !date || !data?.user) {
-      console.error("ERROR: handleBookingSubmit values not found");
-      return false;
-    }
-    return true;
-  };
-
-  const formatBookingDate = (date: Date, hour: string): Date =>
-    setMinutes(setHours(date, hourSplitted), minuteSplitted);
+  }, [date, barbershop.id, selectedBarber, setDayBookings]);
 
   const saveBookingAndNotify = async (newDateFormatted: Date) => {
-    await saveBooking({
-      barbershopId: barbershop.id,
-      serviceId: service.id,
-      userId: (data?.user as any).id,
-      date: newDateFormatted,
-    });
+    if (!selectedBarber) return;
+
+    await Promise.all(
+      selectedServices.map((service) =>
+        saveBooking({
+          barbershopId: barbershop.id,
+          serviceId: service.id,
+          userId: (user as any).id,
+          barberId: selectedBarber.id,
+          date: newDateFormatted,
+        })
+      )
+    );
     setSheetIsOpen(false);
     setHour(undefined);
     setDate(undefined);
+    clearSelectedServices();
 
     toast("Reserva realizada com sucesso!", {
-      description: `${format(newDateFormatted, "'Para' dd 'de' MMMM 'às' HH':'mm'.'", {
-        locale: ptBR,
-      })}`,
+      description: `Com ${selectedBarber.name}, ${format(
+        newDateFormatted,
+        "dd 'de' MMMM 'às' HH':'mm",
+        { locale: ptBR }
+      )}.`,
       action: {
         label: "Visualizar",
         onClick: () => push("/bookings"),
@@ -123,6 +92,8 @@ const BookingMenu = ({
   };
 
   const handleBookingSubmit = async () => {
+    if (!checkAuthAndRedirect()) return;
+
     setIsLoading(true);
     try {
       if (!validateBookingData()) return;
@@ -144,13 +115,13 @@ const BookingMenu = ({
       </SheetHeader>
 
       <div className="py-1">
-        <CalendarComponent {...{ date, setDate, newDate, handleDateClick }} />
+        <CalendarComponent {...{ date, setDate, handleDateClick }} />
       </div>
 
       {date && <TimeListComponent {...{ hour, timeList, handleHourClick }} />}
 
       <div className="py-6 px-5 border-t border-solid border-secondary">
-        <ServiceCardDetails service={service} date={date} hour={hour} barbershop={barbershop} />
+        <ServiceCardDetails {...{ date, hour, barbershop }} />
       </div>
 
       <SheetFooter className="px-5">

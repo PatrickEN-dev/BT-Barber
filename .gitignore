@@ -8,6 +8,9 @@
 
 .env
 
+# local mcp / tooling config
+.mcp.json
+
 # testing
 /coverage
 
