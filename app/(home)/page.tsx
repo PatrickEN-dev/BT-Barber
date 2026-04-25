@@ -16,7 +16,7 @@ export default async function Home() {
   const [barbershops, recommendedBarbershops, confirmedBookings] = await Promise.all([
     db.barbershop.findMany({}),
     db.barbershop.findMany({ orderBy: { id: "asc" } }),
-    session?.user ? findConfirmedBookings((session.user as any).id) : Promise.resolve([]),
+    session?.user ? findConfirmedBookings(session.user.id) : Promise.resolve([]),
   ]);
 
   return (

@@ -11,7 +11,7 @@ const BookingsPage = async () => {
   await protectRoute();
   const session = await getServerSession(authOptions);
 
-  const userId = (session?.user as any).id;
+  const userId = session!.user.id;
 
   try {
     const [confirmedBookings, finishedBookings] = await Promise.all([

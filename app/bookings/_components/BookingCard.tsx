@@ -15,7 +15,13 @@ import BookingLocationMap from "./_BookingSubComponents/BookingLocationMap";
 import { IBookingBarberShopServiceProps } from "./interfaces";
 
 const BookingCard = ({ booking }: IBookingBarberShopServiceProps) => {
-  const { name } = booking.service;
+  const serviceNames = booking.services.map((bs) => bs.service.name);
+  const summary =
+    serviceNames.length === 0
+      ? "Reserva"
+      : serviceNames.length === 1
+      ? serviceNames[0]
+      : `${serviceNames[0]} +${serviceNames.length - 1}`;
 
   return (
     <Sheet>
@@ -24,7 +30,7 @@ const BookingCard = ({ booking }: IBookingBarberShopServiceProps) => {
           <CardContent className="py-0 flex px-0">
             <header className="flex flex-col gap-2 py-5 flex-[3] pl-5">
               <BookingHeader {...{ booking }} />
-              <h2 className="font-bold">{name}</h2>
+              <h2 className="font-bold">{summary}</h2>
               <div className="flex items-center gap-2">
                 <BookingBarberShopProfile {...{ booking }} />
               </div>

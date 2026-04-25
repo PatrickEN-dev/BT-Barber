@@ -8,16 +8,25 @@ export const serializeService = (service: Service): SerializedService => ({
 });
 
 type BookingWithRelations = Prisma.BookingGetPayload<{
-  include: { service: true; barbershop: true };
+  include: {
+    barbershop: true;
+    barber: true;
+    services: { include: { service: true } };
+  };
 }>;
 
-export type SerializedBookingWithRelations = Omit<BookingWithRelations, "service"> & {
-  service: SerializedService;
+export type SerializedBookingWithRelations = Omit<BookingWithRelations, "services"> & {
+  services: Array<
+    Omit<BookingWithRelations["services"][number], "service"> & { service: SerializedService }
+  >;
 };
 
 export const serializeBookingWithRelations = (
   booking: BookingWithRelations
 ): SerializedBookingWithRelations => ({
   ...booking,
-  service: serializeService(booking.service),
+  services: booking.services.map((bs) => ({
+    ...bs,
+    service: serializeService(bs.service),
+  })),
 });

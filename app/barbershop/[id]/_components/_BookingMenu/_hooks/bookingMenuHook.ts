@@ -14,40 +14,22 @@ interface IDayBookingsStore {
   setDayBookings: (dayBookings: Booking[]) => void;
 }
 
-interface IHourStore {
-  hour: string | undefined;
-  setHour: (hour: string | undefined) => void;
-}
-
-export const useHourStoreBookingMenu = create<IHourStore>((set) => ({
-  hour: undefined,
-  setHour: (hour: string | undefined) => set(() => ({ hour })),
-}));
-
 export const dayBookingsStore = create<IDayBookingsStore>((set) => ({
   dayBookings: [],
-  setDayBookings: (dayBookings: Booking[]) => set(() => ({ dayBookings })),
+  setDayBookings: (dayBookings) => set({ dayBookings }),
 }));
 
 const useBookingMenu = () => {
-  const { user, isAuthenticated, checkAuthAndRedirect } = useAuthGuard({
-    requireAuth: false, // Não redireciona automaticamente, apenas verifica
-  });
+  const { user, isAuthenticated, checkAuthAndRedirect } = useAuthGuard({ requireAuth: false });
   const { isLoading } = useLoading();
-
   const { hour, setHour, date, setDate, selectedServices, selectedBarber } =
     useBarbershopServices();
-
   const { dayBookings, setDayBookings } = dayBookingsStore();
 
   const handleHourClick = (time: string) => setHour(time);
 
-  const newDate = new Date();
-  const hourSplitted = hour ? Number(hour?.split(":")[0]) : 0;
-  const minuteSplitted = hour ? Number(hour?.split(":")[1]) : 0;
-
-  const handleDateClick = (date: Date | undefined) => {
-    setDate(date);
+  const handleDateClick = (next: Date | undefined) => {
+    setDate(next);
     setHour(undefined);
   };
 
@@ -55,19 +37,10 @@ const useBookingMenu = () => {
     () =>
       date
         ? generateDayTimeList(date).filter((time) => {
-            const hourSplitted = time ? Number(time?.split(":")[0]) : 0;
-            const minuteSplitted = time ? Number(time?.split(":")[1]) : 0;
-
-            const booking = dayBookings.find((booking) => {
-              const bookingHour = booking.date.getHours();
-              const bookingMinutes = booking.date.getMinutes();
-
-              return bookingHour === hourSplitted && bookingMinutes === minuteSplitted;
-            });
-
-            if (!booking) return true;
-
-            return false;
+            const [hh, mm] = time.split(":").map(Number);
+            return !dayBookings.some(
+              (b) => b.date.getHours() === hh && b.date.getMinutes() === mm
+            );
           })
         : [],
     [date, dayBookings]
@@ -81,8 +54,10 @@ const useBookingMenu = () => {
     return true;
   };
 
-  const formatBookingDate = (date: Date, hour: string): Date =>
-    setMinutes(setHours(date, hourSplitted), minuteSplitted);
+  const formatBookingDate = (d: Date, h: string): Date => {
+    const [hh, mm] = h.split(":").map(Number);
+    return setMinutes(setHours(d, hh), mm);
+  };
 
   return {
     hour,

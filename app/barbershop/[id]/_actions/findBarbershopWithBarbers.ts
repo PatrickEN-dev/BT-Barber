@@ -9,7 +9,6 @@ export const findBarbershopWithBarbers = async (id: string) => {
     include: {
       Service: true,
       Barbers: {
-        where: { deletedAt: null },
         orderBy: { rating: "desc" },
         include: { services: true },
       },

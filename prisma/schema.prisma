@@ -19,7 +19,6 @@ model User {
   Booking       Booking[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
 }
 
 model Barbershop {
@@ -31,42 +30,57 @@ model Barbershop {
   Service   Service[]
   Booking   Booking[]
   ownerId   String?
-  owner     BarbershopOwner? @relation(fields: [ownerId], references: [id])
+  owner     BarbershopOwner? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   Barbers   Barber[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  deletedAt DateTime?
+
+  @@index([ownerId])
 }
 
 model Service {
-  id           String     @id @default(uuid())
-  name         String
-  price        Decimal    @db.Decimal(10, 2)
-  description  String
-  imageUrl     String
-  barbershopId String
-  barbershop   Barbershop @relation(fields: [barbershopId], references: [id])
-  Booking      Booking[]
-  Barbers      Barber[]   @relation("BarberServices")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?
+  id              String           @id @default(uuid())
+  name            String
+  price           Decimal          @db.Decimal(10, 2)
+  description     String
+  imageUrl        String
+  barbershopId    String
+  barbershop      Barbershop       @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  BookingService  BookingService[]
+  Barbers         Barber[]         @relation("BarberServices")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([barbershopId])
 }
 
 model Booking {
-  id           String     @id @default(uuid())
+  id           String           @id @default(uuid())
   date         DateTime
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   barbershopId String
-  barbershop   Barbershop @relation(fields: [barbershopId], references: [id])
-  serviceId    String
-  service      Service    @relation(fields: [serviceId], references: [id])
-  barberId     String?
-  barber       Barber?    @relation(fields: [barberId], references: [id])
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?
+  barbershop   Barbershop       @relation(fields: [barbershopId], references: [id], onDelete: Restrict)
+  barberId     String
+  barber       Barber           @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  services     BookingService[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([barberId, date])
+  @@index([userId, date])
+  @@index([barbershopId, date])
+}
+
+model BookingService {
+  id        String  @id @default(uuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, serviceId])
+  @@index([serviceId])
 }
 
 model BarbershopOwner {
@@ -79,7 +93,6 @@ model BarbershopOwner {
   Barbershop  Barbershop[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
 }
 
 model Barber {
@@ -89,12 +102,13 @@ model Barber {
   rating       Float?     @default(0)
   imageUrl     String?
   barbershopId String
-  barbershop   Barbershop @relation(fields: [barbershopId], references: [id])
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   services     Service[]  @relation("BarberServices")
   Booking      Booking[]
   createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?
+  updatedAt   DateTime    @updatedAt
+
+  @@index([barbershopId])
 }
 
 model Account {
@@ -114,6 +128,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -122,6 +137,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
