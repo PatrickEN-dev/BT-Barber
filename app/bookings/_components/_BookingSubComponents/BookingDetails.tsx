@@ -1,12 +1,13 @@
-import { Barbershop, Booking, Service } from "@prisma/client";
+import { Barbershop, Booking } from "@prisma/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatPrice } from "@/app/_utils/formatPrices";
 import { Card, CardContent } from "@/app/_components/ui/card";
+import type { SerializedService } from "@/app/_lib/serializers";
 
 interface BookingInfoProps {
   booking: Partial<Pick<Booking, "date">> & {
-    service: Pick<Service, "name" | "price">;
+    service: Pick<SerializedService, "name" | "price">;
     barbershop: Pick<Barbershop, "name">;
   };
 }

@@ -35,7 +35,8 @@ const useBookingMenu = () => {
   });
   const { isLoading } = useLoading();
 
-  const { hour, setHour, date, setDate } = useBarbershopServices();
+  const { hour, setHour, date, setDate, selectedServices, selectedBarber } =
+    useBarbershopServices();
 
   const { dayBookings, setDayBookings } = dayBookingsStore();
 
@@ -73,7 +74,7 @@ const useBookingMenu = () => {
   );
 
   const validateBookingData = () => {
-    if (!hour || !date || !user) {
+    if (!hour || !date || !user || !selectedBarber || selectedServices.length === 0) {
       console.error("ERROR: handleBookingSubmit values not found");
       return false;
     }

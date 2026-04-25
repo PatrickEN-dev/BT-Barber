@@ -1,19 +1,25 @@
 "use client";
 
-import { Barbershop, Service } from "@prisma/client";
 import BarberShopServiceCard from "./ServiceCard";
+import type { SerializedService } from "@/app/_lib/serializers";
 
 interface IBarbershopServiceCardListProps {
-  barbershopData: Barbershop & {
-    Service: Service[];
-  };
+  services: SerializedService[];
 }
 
-const BarbershopServiceCardList = ({ barbershopData }: IBarbershopServiceCardListProps) => {
+const BarbershopServiceCardList = ({ services }: IBarbershopServiceCardListProps) => {
+  if (services.length === 0) {
+    return (
+      <div className="px-5 py-10 text-center text-gray-400 text-sm">
+        Este barbeiro ainda não tem serviços cadastrados.
+      </div>
+    );
+  }
+
   return (
     <ul className="px-5 flex flex-col gap-3 py-6">
-      {barbershopData?.Service.map((service: Service) => (
-        <BarberShopServiceCard service={service} key={service.id} barbershop={barbershopData} />
+      {services.map((service) => (
+        <BarberShopServiceCard service={service} key={service.id} />
       ))}
     </ul>
   );

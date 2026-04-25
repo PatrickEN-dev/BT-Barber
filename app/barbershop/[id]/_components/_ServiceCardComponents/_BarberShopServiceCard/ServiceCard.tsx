@@ -1,22 +1,19 @@
 "use client";
 
 import { Card, CardContent } from "@/app/_components/ui/card";
-import { Sheet } from "@/app/_components/ui/sheet";
 import { formatPrice } from "@/app/_utils/formatPrices";
-import { Barbershop, Service } from "@prisma/client";
 import Image from "next/image";
-import { useState } from "react";
-import BookingMenu from "../../_BookingMenu/BookingMenu";
 import { Checkbox } from "@/app/_components/ui/checkbox";
 import useBarbershopServices from "../../_ServiceComponent/model";
+import type { SerializedService } from "@/app/_lib/serializers";
 
 interface IServiceCardProps {
-  service: Service;
-  barbershop: Barbershop;
+  service: SerializedService;
 }
 
-const BarberShopServiceCard = ({ service, barbershop }: IServiceCardProps) => {
-  const { sheetIsOpen, setSheetIsOpen, handleCheckboxChange } = useBarbershopServices();
+const BarberShopServiceCard = ({ service }: IServiceCardProps) => {
+  const { isServiceSelected, toggleService } = useBarbershopServices();
+  const checked = isServiceSelected(service.id);
 
   return (
     <Card>
@@ -39,13 +36,14 @@ const BarberShopServiceCard = ({ service, barbershop }: IServiceCardProps) => {
             <section className="flex items-center justify-between mt-3">
               <p className="text-primary text-sm font-bold">{formatPrice(String(service.price))}</p>
 
-              <Sheet open={sheetIsOpen} onOpenChange={setSheetIsOpen}>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-400">
                 <Checkbox
-                  onCheckedChange={(isChecked: boolean) => handleCheckboxChange(isChecked, service)}
+                  id={`service-${service.id}`}
+                  checked={checked}
+                  onCheckedChange={() => toggleService(service)}
                 />
-
-                <BookingMenu {...{ barbershop }} />
-              </Sheet>
+                <span>{checked ? "Selecionado" : "Selecionar"}</span>
+              </label>
             </section>
           </div>
         </div>

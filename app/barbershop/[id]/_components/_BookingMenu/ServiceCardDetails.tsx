@@ -14,7 +14,7 @@ interface IServiceCardDetails {
 }
 
 const ServiceCardDetails = ({ date, hour, barbershop }: IServiceCardDetails) => {
-  const { selectedServices } = useBarbershopServices();
+  const { selectedServices, selectedBarber } = useBarbershopServices();
 
   const formattedDate = date ? format(date, "dd 'de' MMMM", { locale: ptBR }) : undefined;
 
@@ -54,6 +54,13 @@ const ServiceCardDetails = ({ date, hour, barbershop }: IServiceCardDetails) => 
             <h3 className="text-gray-400 text-sm">Barbearia</h3>
             <h4 className="text-gray-400 text-sm capitalize">{barbershop.name}</h4>
           </section>
+
+          {selectedBarber && (
+            <section className="flex justify-between mt-4">
+              <h3 className="text-gray-400 text-sm">Barbeiro</h3>
+              <h4 className="text-gray-400 text-sm">{selectedBarber.name}</h4>
+            </section>
+          )}
         </section>
       </CardContent>
     </Card>

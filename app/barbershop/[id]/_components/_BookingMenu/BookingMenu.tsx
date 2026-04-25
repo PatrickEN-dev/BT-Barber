@@ -7,7 +7,6 @@ import TimeListComponent from "./TimeListComponent";
 import { Barbershop } from "@prisma/client";
 import { Button } from "@/app/_components/ui/button";
 import ServiceCardDetails from "./ServiceCardDetails";
-import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { saveBooking } from "../../_actions/saveBooking";
 import { useLoading } from "@/app/_providers/loading";
@@ -21,19 +20,22 @@ import useBookingMenu from "./_hooks/bookingMenuHook";
 
 interface IBookingMenuProps {
   barbershop: Barbershop;
-  // hour: string | undefined;
-  // setHour: Dispatch<SetStateAction<string | undefined>>;
-  // date: Date | undefined;
-  // setDate: Dispatch<SetStateAction<Date | undefined>>;
-  // newDate: Date;
 }
 
 const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   const { push } = useRouter();
   const { isLoading, setIsLoading } = useLoading();
 
-  const { setSheetIsOpen, sheetIsOpen, selectedServices, hour, setHour, date, setDate } =
-    useBarbershopServices();
+  const {
+    setSheetIsOpen,
+    selectedServices,
+    clearSelectedServices,
+    selectedBarber,
+    hour,
+    setHour,
+    date,
+    setDate,
+  } = useBarbershopServices();
 
   const {
     timeList,
@@ -47,34 +49,41 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   } = useBookingMenu();
 
   useEffect(() => {
-    if (!date) return console.error("Theren't date on useEffect getDayBookings");
+    if (!date || !selectedBarber) return;
 
     const refreshAvailableHours = async () => {
-      // preciso passar barberId no futuro
-      const dayBookingsData = await getDayBookings(barbershop.id, date);
+      const dayBookingsData = await getDayBookings(barbershop.id, date, selectedBarber.id);
       setDayBookings(dayBookingsData);
     };
 
     refreshAvailableHours();
-  }, [date, barbershop.id, setDayBookings]);
+  }, [date, barbershop.id, selectedBarber, setDayBookings]);
 
   const saveBookingAndNotify = async (newDateFormatted: Date) => {
-    for (const service of selectedServices) {
-      await saveBooking({
-        barbershopId: barbershop.id,
-        serviceId: service.id,
-        userId: (user as any).id,
-        date: newDateFormatted,
-      });
-    }
+    if (!selectedBarber) return;
+
+    await Promise.all(
+      selectedServices.map((service) =>
+        saveBooking({
+          barbershopId: barbershop.id,
+          serviceId: service.id,
+          userId: (user as any).id,
+          barberId: selectedBarber.id,
+          date: newDateFormatted,
+        })
+      )
+    );
     setSheetIsOpen(false);
     setHour(undefined);
     setDate(undefined);
+    clearSelectedServices();
 
     toast("Reserva realizada com sucesso!", {
-      description: `${format(newDateFormatted, "'Para' dd 'de' MMMM 'às' HH':'mm'.'", {
-        locale: ptBR,
-      })}`,
+      description: `Com ${selectedBarber.name}, ${format(
+        newDateFormatted,
+        "dd 'de' MMMM 'às' HH':'mm",
+        { locale: ptBR }
+      )}.`,
       action: {
         label: "Visualizar",
         onClick: () => push("/bookings"),
@@ -83,10 +92,7 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   };
 
   const handleBookingSubmit = async () => {
-    // Verifica se o usuário está autenticado antes de prosseguir
-    if (!checkAuthAndRedirect()) {
-      return;
-    }
+    if (!checkAuthAndRedirect()) return;
 
     setIsLoading(true);
     try {
