@@ -46,17 +46,27 @@ Each route segment provides `loading.tsx` and `error.tsx`.
 
 ### Data layer
 
-- `prisma/schema.prisma` defines `User`, `Barbershop`, `Service`, `Booking`, `BarbershopOwner`, `Barber`. Most models include `createdAt`, `updatedAt`, `deletedAt` — soft-delete columns exist but **most queries don't filter on them**. The barbershop loaders (`findBarbershopWithBarbers`, `findBarberWithServices`) do filter `Barbers.deletedAt = null`; everything else ignores soft-delete state.
-- `Barber` ↔ `Service` is many-to-many via the implicit `_BarberServices` join table — a barber only does the services they're connected to in this table. The booking flow filters services by the selected barber's offerings; do not assume all services are bookable with all barbers.
-- `Booking.barberId` is **set on every new booking** (the booking flow requires picking a barber first). Legacy rows from before the barber feature may have `barberId = null` — code that filters bookings by barber should treat `null` as "no barber assigned" and not as "any barber".
+- `prisma/schema.prisma` defines `User`, `Barbershop`, `Service`, `Booking`, `BookingService`, `BarbershopOwner`, `Barber`. **Hard delete only** — `deletedAt` columns were removed (the column existed but no query honored it; foot-gun). Use `db.X.delete(...)` and trust `onDelete` cascades.
+- **Booking is normalized**: `Booking` has `(userId, barbershopId, barberId, date)`, **without `serviceId`**. The services for a booking live in `BookingService` (junction table, `1 Booking → N services`). One physical reservation = one `Booking` row + N `BookingService` rows. Cancelling a `Booking` cascades into its services.
+- **`@@unique([barberId, date])` on `Booking`** prevents double-booking by constraint (not by client check). `saveBooking` catches `Prisma.PrismaClientKnownRequestError` with code `P2002` and rethrows `BookingSlotTakenError` (defined in `_actions/_errors.ts`, not in the action file — `"use server"` files cannot export classes).
+- `Booking.barberId` is **NOT NULL** — the booking flow always picks a barber. There are no legacy `null` rows after the normalization migration.
+- `Barber` ↔ `Service` is M:N via the implicit `_BarberServices` join table — a barber only does the services they're connected to. The booking flow filters services by the selected barber's offerings; do not assume all services are bookable with all barbers.
+- **FK onDelete behavior** is explicit on every relation we created/edited:
+  - `Booking.user` → `Cascade` (user deleted → bookings gone)
+  - `Booking.barber` → `Cascade` (barber leaves shop → their bookings gone)
+  - `Booking.barbershop` → `Restrict` (can't delete a shop with bookings)
+  - `Service.barbershop` → `Cascade`, `Barber.barbershop` → `Cascade`
+  - `BookingService.booking` → `Cascade`, `BookingService.service` → `Restrict` (can't delete a service that's on an active booking)
+  - `Barbershop.owner` → `SetNull`
+- **Indexes**: every FK we query has an index — `Booking(userId, date)`, `Booking(barbershopId, date)`, plus single-column indexes on `Service.barbershopId`, `Barber.barbershopId`, `Account.userId`, `Session.userId`, `Barbershop.ownerId`, and `BookingService.serviceId`. Postgres does not auto-index FKs; declare them in the schema.
 - The Postgres datasource expects both `DATABASE_URL` and `DIRECT_URL` (Supabase pooler pattern).
 - Always import the Prisma client from `@/app/_lib/prisma` (`import { db } from ...`). Do **not** instantiate `new PrismaClient()` directly — the file caches a single instance on `globalThis` to avoid connection storms in dev.
-- Mutations live in server actions (`"use server"` at top of the file). After writes, call `revalidatePath("/")` and `revalidatePath("/bookings")` so the home and bookings pages refresh — see `app/_actions/booking.ts` and `app/barbershop/[id]/_actions/saveBooking.ts` for the pattern.
+- Mutations live in server actions (`"use server"` at top of the file). After writes, call `revalidatePath("/")` and `revalidatePath("/bookings")` so the home and bookings pages refresh — see `app/_actions/booking.ts` and `app/barbershop/[id]/_actions/saveBooking.ts` for the pattern. **Server-action files can only export async functions** — non-function exports (classes, types-as-values, etc.) belong in sibling non-`"use server"` files (see `_actions/_errors.ts`).
 - Seeds: `prisma/seed.ts` creates 10 `Barbershop` + 60 `Service` (6 per shop). `prisma/seed-barbers.ts` is a **separate idempotent script** that adds 3 `Barber` per shop with random rating + 3–5 connected services; it skips shops that already have barbers, so it's safe to re-run. Neither seed creates users, owners, or bookings.
 
 ### Auth model
 
-NextAuth with `PrismaAdapter` and Google provider, configured in `app/_lib/auth.ts`. The session callback injects `user.id` onto `session.user` (the type isn't augmented, so call sites cast: `(session.user as any).id`).
+NextAuth with `PrismaAdapter` and Google provider, configured in `app/_lib/auth.ts`. The session callback injects `user.id` onto `session.user`. The `Session.user` type is augmented in `app/_types/_globals/next-auth.d.ts`, so call sites use `session.user.id` directly (no `as any` cast).
 
 There are **two layers** of route protection — pick the right one for the situation:
 
@@ -74,7 +84,6 @@ Zustand stores are declared inline in the file that consumes them (no central `s
 - `useStore` (sheet open/close), `useSelectedServices`, `useSelectedBarberStore` — all in `app/barbershop/[id]/_components/_ServiceComponent/model.ts`. Composed by the `useBarbershopServices()` hook.
 - `useDateStore`, `useHourStore` — in `app/barbershop/[id]/_components/_hooks/useDate.ts`. **These are the canonical date/hour stores.**
 - `dayBookingsStore` — in `app/barbershop/[id]/_components/_BookingMenu/_hooks/bookingMenuHook.ts`. Holds the bookings already on the calendar so `TimeListComponent` can grey out taken slots. **Per-barber filtered**: when a barber is selected, only bookings for that barber count as conflicts (see `getDayBookings`).
-- `useHourStoreBookingMenu` (same file, `bookingMenuHook.ts`) — **dead code**, exported but never imported. Don't use it; touch the canonical `useHourStore` instead.
 
 Global async loading state lives in the `LoadingProvider` context (`useLoading()`), not Zustand.
 
@@ -95,7 +104,9 @@ Global async loading state lives in the `LoadingProvider` context (`useLoading()
 
 `ServiceCard` is a dumb checkbox: reads `isServiceSelected(service.id)`, calls `toggleService(service)` on change. The "Reservar" button is disabled when `selectedServices.length === 0`.
 
-A booking submit calls `saveBooking` once **per selected service in parallel** (`Promise.all`), producing N rows in `Booking` sharing `(userId, barbershopId, barberId, date)` but different `serviceId`. There is no "package" booking — multi-service is just multiple rows. After success, both `selectedServices` and the date/hour are cleared; `selectedBarber` is **kept** (lets the user immediately make a follow-up booking with the same barber if they want).
+A booking submit calls `saveBooking` **once** with `serviceIds: string[]` — the action creates one `Booking` row plus N `BookingService` rows in a single Prisma `create` (atomic). Multi-service is **not** N parallel calls anymore (the previous design produced N `Booking` rows that broke `@@unique([barberId, date])`). After success, both `selectedServices` and the date/hour are cleared; `selectedBarber` is **kept** (lets the user immediately make a follow-up booking with the same barber if they want).
+
+If the slot is taken between the calendar render and submit, Postgres returns `P2002` on the unique constraint and the action throws `BookingSlotTakenError` (from `_actions/_errors.ts`). `BookingMenu` catches it and shows a sonner error toast.
 
 ### Data loaders for the booking flow
 
@@ -113,7 +124,7 @@ The legacy `findUniqueBarberShop` was removed — `findBarbershopWithBarbers` is
 The convention lives in `app/_lib/serializers.ts`:
 
 - `serializeService(service)` → `SerializedService` (`Omit<Service, "price"> & { price: string }`).
-- `serializeBookingWithRelations(booking)` → `SerializedBookingWithRelations` (includes a `SerializedService` under `service`).
+- `serializeBookingWithRelations(booking)` → `SerializedBookingWithRelations` (a Booking with `barbershop`, `barber`, and `services: Array<{ ..., service: SerializedService }>` — the M:N junction expanded with serialized prices).
 
 Every server action that returns a `Service` (directly or nested under barbers/bookings) maps the result through one of these. Type aliases derived via `Awaited<ReturnType<typeof X>>` give the rest of the codebase the right shapes without manual annotation. Consumers (Zustand store, `ServiceCard`, `BookingsList`, `BookingDetails`, etc.) type against `SerializedService` rather than Prisma's `Service`.
 

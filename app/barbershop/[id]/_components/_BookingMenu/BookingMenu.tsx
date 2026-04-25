@@ -9,6 +9,7 @@ import { Button } from "@/app/_components/ui/button";
 import ServiceCardDetails from "./ServiceCardDetails";
 import { format } from "date-fns";
 import { saveBooking } from "../../_actions/saveBooking";
+import { BookingSlotTakenError } from "../../_actions/_errors";
 import { useLoading } from "@/app/_providers/loading";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,17 +63,14 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   const saveBookingAndNotify = async (newDateFormatted: Date) => {
     if (!selectedBarber) return;
 
-    await Promise.all(
-      selectedServices.map((service) =>
-        saveBooking({
-          barbershopId: barbershop.id,
-          serviceId: service.id,
-          userId: (user as any).id,
-          barberId: selectedBarber.id,
-          date: newDateFormatted,
-        })
-      )
-    );
+    await saveBooking({
+      barbershopId: barbershop.id,
+      barberId: selectedBarber.id,
+      userId: user!.id,
+      date: newDateFormatted,
+      serviceIds: selectedServices.map((s) => s.id),
+    });
+
     setSheetIsOpen(false);
     setHour(undefined);
     setDate(undefined);
@@ -102,7 +100,12 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
 
       await saveBookingAndNotify(newDateFormatted);
     } catch (error) {
-      console.error(error);
+      if (error instanceof Error && error.name === BookingSlotTakenError.name) {
+        toast.error(error.message);
+      } else {
+        console.error(error);
+        toast.error("Não foi possível concluir a reserva. Tente novamente.");
+      }
     } finally {
       setIsLoading(false);
     }

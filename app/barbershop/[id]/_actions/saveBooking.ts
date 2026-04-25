@@ -1,32 +1,47 @@
 "use server";
 
 import { db } from "@/app/_lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { BookingSlotTakenError } from "./_errors";
 
 interface ISaveBookingProps {
   barbershopId: string;
-  serviceId: string;
+  barberId: string;
   userId: string;
-  barberId?: string;
   date: Date;
+  serviceIds: string[];
 }
 
 export const saveBooking = async ({
   barbershopId,
-  serviceId,
-  userId,
   barberId,
+  userId,
   date,
+  serviceIds,
 }: ISaveBookingProps) => {
-  await db.booking.create({
-    data: {
-      barbershopId,
-      serviceId,
-      userId,
-      barberId,
-      date,
-    },
-  });
+  if (serviceIds.length === 0) {
+    throw new Error("Selecione ao menos um serviço.");
+  }
+
+  try {
+    await db.booking.create({
+      data: {
+        barbershopId,
+        barberId,
+        userId,
+        date,
+        services: {
+          create: serviceIds.map((serviceId) => ({ serviceId })),
+        },
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new BookingSlotTakenError();
+    }
+    throw err;
+  }
 
   revalidatePath("/");
   revalidatePath("/bookings");
