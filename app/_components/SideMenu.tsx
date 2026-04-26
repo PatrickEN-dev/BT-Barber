@@ -4,7 +4,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { SheetHeader, SheetTitle } from "./ui/sheet";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { CalendarIcon, HomeIcon, LogInIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { CalendarIcon, HomeIcon, LogInIcon, LogOutIcon, UserIcon, UserCircleIcon } from "lucide-react";
 import Link from "next/link";
 
 const SideMenu = () => {
@@ -30,8 +30,8 @@ const SideMenu = () => {
             <h2 className="font-bold">{data.user?.name}</h2>
           </div>
 
-          <Button type="button" variant="secondary" size="icon">
-            <LogOutIcon onClick={handleLogoutClick} />
+          <Button type="button" variant="secondary" size="icon" onClick={handleLogoutClick}>
+            <LogOutIcon />
           </Button>
         </section>
       ) : (
@@ -61,12 +61,21 @@ const SideMenu = () => {
         </Button>
 
         {data?.user && (
-          <Button type="button" variant="outline" className="justify-start" asChild>
-            <Link href="/bookings">
-              <CalendarIcon size={18} className="mr-2" />
-              Agendamentos
-            </Link>
-          </Button>
+          <>
+            <Button type="button" variant="outline" className="justify-start" asChild>
+              <Link href="/profile">
+                <UserCircleIcon size={18} className="mr-2" />
+                Meu perfil
+              </Link>
+            </Button>
+
+            <Button type="button" variant="outline" className="justify-start" asChild>
+              <Link href="/bookings">
+                <CalendarIcon size={18} className="mr-2" />
+                Agendamentos
+              </Link>
+            </Button>
+          </>
         )}
       </section>
     </>
