@@ -48,7 +48,10 @@ Each route segment provides `loading.tsx` and `error.tsx`.
 
 - `prisma/schema.prisma` defines `User`, `Barbershop`, `Service`, `Booking`, `BookingService`, `BarbershopOwner`, `Barber`. **Hard delete only** — `deletedAt` columns were removed (the column existed but no query honored it; foot-gun). Use `db.X.delete(...)` and trust `onDelete` cascades.
 - **Booking is normalized**: `Booking` has `(userId, barbershopId, barberId, date)`, **without `serviceId`**. The services for a booking live in `BookingService` (junction table, `1 Booking → N services`). One physical reservation = one `Booking` row + N `BookingService` rows. Cancelling a `Booking` cascades into its services.
-- **`@@unique([barberId, date])` on `Booking`** prevents double-booking by constraint (not by client check). `saveBooking` catches `Prisma.PrismaClientKnownRequestError` with code `P2002` and rethrows `BookingSlotTakenError` (defined in `_actions/_errors.ts`, not in the action file — `"use server"` files cannot export classes).
+- **Two unique constraints on `Booking`** prevent double-booking by constraint (not by client check):
+  - `@@unique([barberId, date])` — same barber can't be booked twice at the same instant.
+  - `@@unique([userId, date])` — same client can't be in two places at once (different barbers, same time). Also covers the unique index that `(userId, date)` lookups would have used anyway.
+  Both raise `P2002`. `saveBooking` catches `Prisma.PrismaClientKnownRequestError` with code `P2002` and rethrows `BookingSlotTakenError` (defined in `_actions/_errors.ts`, not in the action file — `"use server"` files cannot export classes).
 - `Booking.barberId` is **NOT NULL** — the booking flow always picks a barber. There are no legacy `null` rows after the normalization migration.
 - `Barber` ↔ `Service` is M:N via the implicit `_BarberServices` join table — a barber only does the services they're connected to. The booking flow filters services by the selected barber's offerings; do not assume all services are bookable with all barbers.
 - **FK onDelete behavior** is explicit on every relation we created/edited:
@@ -58,7 +61,7 @@ Each route segment provides `loading.tsx` and `error.tsx`.
   - `Service.barbershop` → `Cascade`, `Barber.barbershop` → `Cascade`
   - `BookingService.booking` → `Cascade`, `BookingService.service` → `Restrict` (can't delete a service that's on an active booking)
   - `Barbershop.owner` → `SetNull`
-- **Indexes**: every FK we query has an index — `Booking(userId, date)`, `Booking(barbershopId, date)`, plus single-column indexes on `Service.barbershopId`, `Barber.barbershopId`, `Account.userId`, `Session.userId`, `Barbershop.ownerId`, and `BookingService.serviceId`. Postgres does not auto-index FKs; declare them in the schema.
+- **Indexes**: every FK we query has an index — `Booking(barbershopId, date)`, plus single-column indexes on `Service.barbershopId`, `Barber.barbershopId`, `Account.userId`, `Session.userId`, `Barbershop.ownerId`, and `BookingService.serviceId`. The unique constraints `(barberId, date)` and `(userId, date)` on `Booking` double as indexes for the lookups Prisma actually does. Postgres does not auto-index FKs; declare them in the schema.
 - The Postgres datasource expects both `DATABASE_URL` and `DIRECT_URL` (Supabase pooler pattern).
 - Always import the Prisma client from `@/app/_lib/prisma` (`import { db } from ...`). Do **not** instantiate `new PrismaClient()` directly — the file caches a single instance on `globalThis` to avoid connection storms in dev.
 - Mutations live in server actions (`"use server"` at top of the file). After writes, call `revalidatePath("/")` and `revalidatePath("/bookings")` so the home and bookings pages refresh — see `app/_actions/booking.ts` and `app/barbershop/[id]/_actions/saveBooking.ts` for the pattern. **Server-action files can only export async functions** — non-function exports (classes, types-as-values, etc.) belong in sibling non-`"use server"` files (see `_actions/_errors.ts`).

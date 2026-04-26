@@ -68,7 +68,7 @@ model Booking {
   updatedAt    DateTime         @updatedAt
 
   @@unique([barberId, date])
-  @@index([userId, date])
+  @@unique([userId, date])
   @@index([barbershopId, date])
 }
 
