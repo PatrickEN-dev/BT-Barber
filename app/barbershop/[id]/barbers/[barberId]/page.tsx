@@ -6,12 +6,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findBarberWithServices } from "./_actions/findBarber";
 import SelectBarberButton from "./_components/SelectBarberButton";
+import { redirectIfOwner } from "@/app/_utils/redirectIfOwner";
 
 interface IBarberProfilePageProps {
   params: { id: string; barberId: string };
 }
 
 const BarberProfilePage = async ({ params }: IBarberProfilePageProps) => {
+  await redirectIfOwner();
   const barber = await findBarberWithServices(params.barberId, params.id);
 
   if (!barber) notFound();

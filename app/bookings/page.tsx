@@ -1,6 +1,6 @@
 import Header from "../_components/Header";
 import ErrorPage from "../_components/errors/ErrorPage";
-import { protectRoute } from "../_utils/protectRoute";
+import { requireCustomer } from "../_utils/redirectIfOwner";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../_lib/auth";
 import { findConfirmedBookings, findFinishedBookings } from "../_actions/booking";
@@ -8,7 +8,7 @@ import BookingList from "./_components/BookingsList";
 import NoBookingsMessage from "./_components/NotFoundBookings";
 
 const BookingsPage = async () => {
-  await protectRoute();
+  await requireCustomer();
   const session = await getServerSession(authOptions);
 
   const userId = session!.user.id;

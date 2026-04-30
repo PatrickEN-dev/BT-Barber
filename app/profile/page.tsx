@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { findConfirmedBookings, findFinishedBookings } from "@/app/_actions/booking";
-import { protectRoute } from "@/app/_utils/protectRoute";
+import { requireCustomer } from "@/app/_utils/redirectIfOwner";
 import Header from "@/app/_components/Header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/app/_components/ui/avatar";
 import { Card, CardContent } from "@/app/_components/ui/card";
@@ -13,7 +13,7 @@ import { ChevronRightIcon } from "lucide-react";
 const PREVIEW_COUNT = 3;
 
 const ProfilePage = async () => {
-  await protectRoute();
+  await requireCustomer();
   const session = await getServerSession(authOptions);
   const user = session!.user;
 

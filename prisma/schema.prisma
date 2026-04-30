@@ -8,21 +8,28 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum UserRole {
+  CUSTOMER
+  OWNER
+}
+
 model User {
-  id            String    @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?      @unique
   emailVerified DateTime?
   image         String?
+  role          UserRole     @default(CUSTOMER)
   accounts      Account[]
   sessions      Session[]
   Booking       Booking[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  ownedShops    Barbershop[] @relation("ShopOwner")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model Barbershop {
-  id        String           @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
   address   String
   phone     String?
@@ -30,10 +37,10 @@ model Barbershop {
   Service   Service[]
   Booking   Booking[]
   ownerId   String?
-  owner     BarbershopOwner? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  owner     User?     @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   Barbers   Barber[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([ownerId])
 }
@@ -81,18 +88,6 @@ model BookingService {
 
   @@unique([bookingId, serviceId])
   @@index([serviceId])
-}
-
-model BarbershopOwner {
-  id          String       @id @default(uuid())
-  name        String
-  email       String?
-  phone       String?
-  imageUrl    String?
-  description String?
-  Barbershop  Barbershop[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
 }
 
 model Barber {

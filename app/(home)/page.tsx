@@ -9,8 +9,10 @@ import { Barbershop } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import InputSearch from "../_components/InputSearch";
 import { findConfirmedBookings } from "../_actions/booking";
+import { redirectIfOwner } from "../_utils/redirectIfOwner";
 
 export default async function Home() {
+  await redirectIfOwner();
   const session = await getServerSession(authOptions);
 
   const [barbershops, recommendedBarbershops, confirmedBookings] = await Promise.all([

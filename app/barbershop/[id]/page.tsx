@@ -2,6 +2,7 @@ import BarberShopInfos from "./_components/BarberShopInfos";
 import { redirect } from "next/navigation";
 import BarbershopServices from "./_components/_ServiceComponent/BarbershopServices";
 import { findBarbershopWithBarbers } from "./_actions/findBarbershopWithBarbers";
+import { redirectIfOwner } from "@/app/_utils/redirectIfOwner";
 
 interface IBarberShopDetailsPageProps {
   params: {
@@ -10,6 +11,7 @@ interface IBarberShopDetailsPageProps {
 }
 
 const BarberShopDetailsPage = async ({ params }: IBarberShopDetailsPageProps) => {
+  await redirectIfOwner();
   if (!params.id) redirect("/");
 
   const barberShop = await findBarbershopWithBarbers(params.id);
