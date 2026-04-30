@@ -24,6 +24,19 @@ export const saveBooking = async ({
     throw new Error("Selecione ao menos um serviço.");
   }
 
+  // Bloqueia se cair dentro de uma janela de indisponibilidade do barbeiro
+  const blocked = await db.barberBlock.findFirst({
+    where: {
+      barberId,
+      startAt: { lte: date },
+      endAt: { gt: date },
+    },
+    select: { id: true },
+  });
+  if (blocked) {
+    throw new BookingSlotTakenError();
+  }
+
   try {
     await db.booking.create({
       data: {

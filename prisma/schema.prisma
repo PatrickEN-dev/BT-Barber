@@ -11,21 +11,24 @@ datasource db {
 enum UserRole {
   CUSTOMER
   OWNER
+  BARBER
 }
 
 model User {
-  id            String       @id @default(cuid())
+  id            String             @id @default(cuid())
   name          String?
-  email         String?      @unique
+  email         String?            @unique
   emailVerified DateTime?
   image         String?
-  role          UserRole     @default(CUSTOMER)
+  role          UserRole           @default(CUSTOMER)
   accounts      Account[]
   sessions      Session[]
   Booking       Booking[]
-  ownedShops    Barbershop[] @relation("ShopOwner")
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  ownedShops    Barbershop[]       @relation("ShopOwner")
+  barberProfile Barber?            @relation("BarberAccount")
+  notesAbout    BarberClientNote[] @relation("ClientNotes")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 model Barbershop {
@@ -46,17 +49,17 @@ model Barbershop {
 }
 
 model Service {
-  id              String           @id @default(uuid())
-  name            String
-  price           Decimal          @db.Decimal(10, 2)
-  description     String
-  imageUrl        String
-  barbershopId    String
-  barbershop      Barbershop       @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  BookingService  BookingService[]
-  Barbers         Barber[]         @relation("BarberServices")
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id             String           @id @default(uuid())
+  name           String
+  price          Decimal          @db.Decimal(10, 2)
+  description    String
+  imageUrl       String
+  barbershopId   String
+  barbershop     Barbershop       @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  BookingService BookingService[]
+  Barbers        Barber[]         @relation("BarberServices")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([barbershopId])
 }
@@ -91,19 +94,49 @@ model BookingService {
 }
 
 model Barber {
-  id           String     @id @default(uuid())
+  id           String             @id @default(uuid())
   name         String
   description  String?
-  rating       Float?     @default(0)
+  rating       Float?             @default(0)
   imageUrl     String?
   barbershopId String
-  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  services     Service[]  @relation("BarberServices")
+  barbershop   Barbershop         @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  userId       String?            @unique
+  user         User?              @relation("BarberAccount", fields: [userId], references: [id], onDelete: SetNull)
+  services     Service[]          @relation("BarberServices")
   Booking      Booking[]
-  createdAt    DateTime   @default(now())
-  updatedAt   DateTime    @updatedAt
+  blocks       BarberBlock[]
+  clientNotes  BarberClientNote[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([barbershopId])
+}
+
+model BarberBlock {
+  id        String   @id @default(uuid())
+  barberId  String
+  barber    Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  startAt   DateTime
+  endAt     DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([barberId, startAt])
+}
+
+model BarberClientNote {
+  id        String   @id @default(uuid())
+  barberId  String
+  barber    Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    User     @relation("ClientNotes", fields: [clientId], references: [id], onDelete: Cascade)
+  note      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([barberId, clientId])
 }
 
 model Account {

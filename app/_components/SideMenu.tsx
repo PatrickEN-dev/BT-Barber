@@ -4,7 +4,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { SheetHeader, SheetTitle } from "./ui/sheet";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { CalendarIcon, HomeIcon, LogInIcon, LogOutIcon, StoreIcon, UserIcon, UserCircleIcon } from "lucide-react";
+import { CalendarIcon, HomeIcon, LogInIcon, LogOutIcon, ScissorsIcon, StoreIcon, UserIcon, UserCircleIcon } from "lucide-react";
 import Link from "next/link";
 
 const SideMenu = () => {
@@ -81,6 +81,15 @@ const SideMenu = () => {
                 <Link href="/admin">
                   <StoreIcon size={18} className="mr-2" />
                   Painel da barbearia
+                </Link>
+              </Button>
+            )}
+
+            {data.user.role === "BARBER" && (
+              <Button type="button" variant="default" className="justify-start" asChild>
+                <Link href="/barber">
+                  <ScissorsIcon size={18} className="mr-2" />
+                  Painel do barbeiro
                 </Link>
               </Button>
             )}
