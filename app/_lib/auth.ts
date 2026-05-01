@@ -17,13 +17,24 @@ export const authOptions: AuthOptions = {
     async session({ session, user }) {
       const dbUser = await db.user.findUnique({
         where: { id: user.id },
-        select: { role: true, theme: true },
+        select: {
+          role: true,
+          theme: true,
+          ownedShops: { select: { id: true }, take: 1 },
+          barberProfile: { select: { id: true, barbershopId: true } },
+        },
       });
+
       session.user = {
         ...session.user,
         id: user.id,
         role: dbUser?.role ?? "CUSTOMER",
         theme: dbUser?.theme ?? "SYSTEM",
+        capabilities: {
+          isOwner: (dbUser?.ownedShops?.length ?? 0) > 0,
+          isBarber: !!dbUser?.barberProfile,
+          barberShopId: dbUser?.barberProfile?.barbershopId ?? null,
+        },
       };
       return session;
     },

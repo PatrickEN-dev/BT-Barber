@@ -8,7 +8,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/app/_components/ui/sheet";
-import { CalendarOffIcon, LogOutIcon, MenuIcon, ScissorsIcon, UserIcon } from "lucide-react";
+import {
+  CalendarOffIcon,
+  HomeIcon,
+  LogOutIcon,
+  MenuIcon,
+  ScissorsIcon,
+  StoreIcon,
+  UserIcon,
+} from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -96,6 +104,20 @@ const BarberHeader = ({ shopId, shopName, barberName, barberImageUrl }: IProps) 
                 <Link href={`/barber/${shopId}/blocks`}>
                   <CalendarOffIcon size={16} className="mr-2" />
                   Bloqueios
+                </Link>
+              </Button>
+              {user?.capabilities?.isOwner && (
+                <Button variant="outline" className="justify-start" asChild>
+                  <Link href="/admin">
+                    <StoreIcon size={16} className="mr-2" />
+                    Painel da barbearia
+                  </Link>
+                </Button>
+              )}
+              <Button variant="outline" className="justify-start" asChild>
+                <Link href="/">
+                  <HomeIcon size={16} className="mr-2" />
+                  Site do cliente
                 </Link>
               </Button>
               <ThemeToggle variant="full" />

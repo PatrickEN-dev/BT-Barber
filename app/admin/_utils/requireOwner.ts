@@ -9,7 +9,7 @@ import { db } from "@/app/_lib/prisma";
 export const requireOwner = cache(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/");
-  if (session.user.role !== "OWNER") redirect("/");
+  if (!session.user.capabilities.isOwner) redirect("/");
   return session.user;
 });
 

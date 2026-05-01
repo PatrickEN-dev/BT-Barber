@@ -6,7 +6,7 @@ import { db } from "@/app/_lib/prisma";
 export const requireBarber = async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/");
-  if (session.user.role !== "BARBER") redirect("/");
+  if (!session.user.capabilities.isBarber) redirect("/");
   return session.user;
 };
 

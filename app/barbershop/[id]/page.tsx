@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { findShopProducts } from "@/app/_actions/product";
-import { redirectIfOwner } from "@/app/_utils/redirectIfOwner";
 
 import BarberShopInfos from "./_components/BarberShopInfos";
 import BarbershopTabs from "./_components/BarbershopTabs";
@@ -14,7 +13,6 @@ interface IBarberShopDetailsPageProps {
 }
 
 const BarberShopDetailsPage = async ({ params }: IBarberShopDetailsPageProps) => {
-  await redirectIfOwner();
   if (!params.id) redirect("/");
 
   const [barberShop, products] = await Promise.all([

@@ -5,7 +5,6 @@ import Header from "../_components/Header";
 import InputSearch from "../_components/InputSearch";
 import BarberShopCard from "../(home)/_components/BarberShopCard";
 import { findAllBarbershops } from "../_actions/barberShop";
-import { redirectIfOwner } from "../_utils/redirectIfOwner";
 
 interface IBarbershopsPageProps {
   searchParams: {
@@ -14,7 +13,6 @@ interface IBarbershopsPageProps {
 }
 
 const BarbershopsPage = async ({ searchParams }: IBarbershopsPageProps) => {
-  await redirectIfOwner();
   if (!searchParams.search) return redirect("/");
 
   const barbershops = await findAllBarbershops(searchParams.search);

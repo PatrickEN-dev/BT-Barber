@@ -6,7 +6,6 @@ import { notFound } from "next/navigation";
 import Container from "@/app/_components/Container";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import { formatPrice } from "@/app/_utils/formatPrices";
-import { redirectIfOwner } from "@/app/_utils/redirectIfOwner";
 
 import { findBarberWithServices } from "./_actions/findBarber";
 import SelectBarberButton from "./_components/SelectBarberButton";
@@ -16,7 +15,6 @@ interface IBarberProfilePageProps {
 }
 
 const BarberProfilePage = async ({ params }: IBarberProfilePageProps) => {
-  await redirectIfOwner();
   const barber = await findBarberWithServices(params.barberId, params.id);
 
   if (!barber) notFound();

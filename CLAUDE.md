@@ -78,15 +78,31 @@ Each route segment provides `loading.tsx` and `error.tsx`.
 
 ### Auth model
 
-NextAuth with `PrismaAdapter` and Google provider, configured in `app/_lib/auth.ts`. The session callback fetches `role` and `theme` from `User` and injects them onto `session.user` along with `id`. The `Session.user` type is augmented in `app/_types/_globals/next-auth.d.ts` (`role: UserRole`, `theme: Theme`), so call sites use `session.user.id`/`role`/`theme` directly without casts. `debug: true` is enabled only when `NODE_ENV === "development"`.
+NextAuth with `PrismaAdapter` and Google provider, configured in `app/_lib/auth.ts`. `debug: true` is enabled only when `NODE_ENV === "development"`.
 
-Three layers of route protection — pick the right one for the situation:
+**Auth is capability-based, not role-based.** The session callback queries the User along with `ownedShops { take: 1 }` and `barberProfile { id, barbershopId }`, then injects derived flags onto `session.user.capabilities`:
 
-1. **`protectRoute()` / `requireCustomer()`** in `app/_utils/protectRoute.ts` and `app/_utils/redirectIfOwner.ts` — for **server components**: call `getServerSession` and `redirect("/")` if no session. Used by `app/bookings/page.tsx`, `app/profile/page.tsx`, `app/orders/page.tsx`.
-2. **`requireOwner()` / `requireShopAccess(shopId)`** in `app/admin/_utils/requireOwner.ts` — for **owner-only server pages** (admin/`[shopId]`/*): redirects non-owners and returns `{ user, shop }` with the validated shop.
-3. **`useAuthGuard()` hook** in `app/_hooks/useAuthGuard.ts` — for **client event handlers** that need auth before proceeding. Returns `{ user, session, isAuthenticated, isLoading, ensureAuth }`. Call `ensureAuth()` inside the handler — if not authenticated, it triggers `signIn("google", { callbackUrl: <current url> })` automatically (no toast, no manual redirect). The user comes back to the same page after Google OAuth completes. Used by `BarbershopServices.openSheetAndVerifyUser` (the "Reservar" button) and `BookingMenu.handleBookingSubmit` (final booking submit) and `CartSheet.handleCheckout` (shop order submit).
+```ts
+session.user.capabilities = {
+  isOwner: ownedShops.length > 0,
+  isBarber: !!barberProfile,
+  barberShopId: barberProfile?.barbershopId ?? null,
+};
+```
 
-Don't add a fourth pattern. The deleted relics from the old design (`app/_components/AuthGuard.tsx`, `app/_utils/authUtils.ts`, `app/_utils/verifyAuthentication.ts`) are gone — don't reintroduce them.
+This means the same User can be **simultaneously owner of one shop and barber of another** (or even of their own shop). Don't gate routes on `User.role` — the enum still exists for legacy/display semantics but the redirects all use capabilities. `Session.user` type augmentation lives in `app/_types/_globals/next-auth.d.ts` and includes `capabilities: SessionCapabilities`.
+
+Server-side gates (use `cache()` for request-level dedup so multiple call sites in one request don't refetch):
+
+1. **`requireCustomer()`** in `app/_utils/redirectIfOwner.ts` — for any authenticated route (`/bookings`, `/profile`, `/orders`). Just checks for a session and redirects to `/` if missing. **Does not redirect by capability** — owners and barbers can browse the customer side freely.
+2. **`requireOwner()` / `requireShopAccess(shopId)`** in `app/admin/_utils/requireOwner.ts` — gate for `/admin/[shopId]/*`. Redirects to `/` if `!capabilities.isOwner`; `requireShopAccess` additionally validates that the shop's `ownerId` matches the user. Both wrapped in React `cache()`.
+3. **`requireBarber()` / `requireBarberContext(shopId)`** in `app/barber/_utils/requireBarber.ts` — gate for `/barber/[shopId]/*`. Redirects to `/` if `!capabilities.isBarber`; `requireBarberContext` further validates the user's `Barber.userId === session.user.id` for the given `barbershopId`.
+4. **`redirectIfOwner()`** in `app/_utils/redirectIfOwner.ts` is now a **no-op** kept for back-compat (some files still call it). Don't add new calls — it does nothing intentionally, because owners are valid customers too.
+5. **`useAuthGuard()` hook** in `app/_hooks/useAuthGuard.ts` — for **client event handlers** that need auth before proceeding. Returns `{ user, session, isAuthenticated, isLoading, ensureAuth }`. Call `ensureAuth()` inside the handler — if not authenticated, it triggers `signIn("google", { callbackUrl: <current url> })` automatically (no toast, no manual redirect). The user comes back to the same page after Google OAuth completes. Used by `BarbershopServices.openSheetAndVerifyUser` (the "Reservar" button), `BookingMenu.handleBookingSubmit` (final booking submit) and `CartSheet.handleCheckout` (shop order submit).
+
+Don't add a sixth pattern. The deleted relics from the old design (`app/_components/AuthGuard.tsx`, `app/_utils/authUtils.ts`, `app/_utils/verifyAuthentication.ts`) are gone — don't reintroduce them.
+
+**Dual-role UX:** the `<SideMenu>` shows "Painel da barbearia" if `capabilities.isOwner` AND "Painel do barbeiro" if `capabilities.isBarber` — both can render simultaneously. Inside the admin panel's Sheet menu, a link to `/barber` appears for users with `capabilities.isBarber`; the barber Sheet menu mirrors this with a link to `/admin` for owners. Both panels also include "Site do cliente" → `/` so dual-role users can jump back into the customer experience.
 
 **Why `ensureAuth()` triggers `signIn("google")` directly instead of redirecting to `/`:** the previous flow showed a "Acesso negado" toast and `router.push("/")`, which forced the user to find the login button on the home page. Going straight to Google with `callbackUrl` is one less click and lands them back where they were trying to act. Don't add toast warnings before — `signIn` redirects the page immediately and the toast wouldn't render anyway.
 

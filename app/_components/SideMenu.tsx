@@ -100,7 +100,7 @@ const SideMenu = () => {
               </Link>
             </Button>
 
-            {data.user.role === "OWNER" && (
+            {data.user.capabilities.isOwner && (
               <Button type="button" variant="default" className="justify-start" asChild>
                 <Link href="/admin">
                   <StoreIcon size={18} className="mr-2" />
@@ -109,7 +109,7 @@ const SideMenu = () => {
               </Button>
             )}
 
-            {data.user.role === "BARBER" && (
+            {data.user.capabilities.isBarber && (
               <Button type="button" variant="default" className="justify-start" asChild>
                 <Link href="/barber">
                   <ScissorsIcon size={18} className="mr-2" />

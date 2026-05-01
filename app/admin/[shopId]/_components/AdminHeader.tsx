@@ -3,6 +3,7 @@
 import {
   ArrowLeftIcon,
   CalendarIcon,
+  HomeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   MenuIcon,
@@ -122,6 +123,20 @@ const AdminHeader = ({ shopName, shopId, shopImageUrl }: IProps) => {
           <Link href={`/admin/${shopId}/settings`}>
             <SettingsIcon size={16} className="mr-2" />
             Configurações
+          </Link>
+        </Button>
+        {user?.capabilities?.isBarber && (
+          <Button variant="outline" className="justify-start" asChild>
+            <Link href="/barber">
+              <ScissorsIcon size={16} className="mr-2" />
+              Painel do barbeiro
+            </Link>
+          </Button>
+        )}
+        <Button variant="outline" className="justify-start" asChild>
+          <Link href="/">
+            <HomeIcon size={16} className="mr-2" />
+            Site do cliente
           </Link>
         </Button>
         <ThemeToggle variant="full" />
