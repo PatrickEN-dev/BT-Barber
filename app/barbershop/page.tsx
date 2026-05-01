@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+
+import Container from "../_components/Container";
 import Header from "../_components/Header";
 import InputSearch from "../_components/InputSearch";
 import BarberShopCard from "../(home)/_components/BarberShopCard";
@@ -18,38 +20,47 @@ const BarbershopsPage = async ({ searchParams }: IBarbershopsPageProps) => {
   const barbershops = await findAllBarbershops(searchParams.search);
 
   return (
-    <>
+    <main className="pb-24">
       <Header />
 
-      <section className="px-5 py-6 flex flex-col gap-6">
-        <InputSearch
-          defaultValues={{
-            search: searchParams.search,
-          }}
-          placeholderInput="Pesquise por uma barbearia..."
-        />
+      <Container as="section" className="flex flex-col gap-6 py-6 lg:py-10">
+        <div className="animate-slide-up">
+          <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-accent">
+            Resultados da busca
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl xl:text-4xl">
+            &ldquo;{searchParams.search}&rdquo;
+          </h1>
+        </div>
+
+        <div className="max-w-xl animate-slide-up" style={{ animationDelay: "80ms" }}>
+          <InputSearch
+            defaultValues={{ search: searchParams.search }}
+            placeholderInput="Pesquise por uma barbearia..."
+          />
+        </div>
 
         {barbershops.length === 0 ? (
-          <section className="text-center items-center">
-            <p>Nenhuma barbearia encontrada.</p>
-          </section>
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
+            <p className="text-base text-muted-foreground">
+              Nenhuma barbearia encontrada para essa busca.
+            </p>
+          </div>
         ) : (
-          <>
-            <h1 className="text-muted-foreground font-bold text-xs uppercase">
-              Resultados para &quot;{searchParams.search}&quot;
-            </h1>
-
-            <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              {barbershops.map((barbershop) => (
-                <li key={barbershop.id} className="w-full">
-                  <BarberShopCard barberShop={barbershop} />
-                </li>
-              ))}
-            </ul>
-          </>
+          <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+            {barbershops.map((barbershop, i) => (
+              <li
+                key={barbershop.id}
+                className="animate-scale-in"
+                style={{ animationDelay: `${120 + i * 50}ms` }}
+              >
+                <BarberShopCard barberShop={barbershop} />
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
-    </>
+      </Container>
+    </main>
   );
 };
 

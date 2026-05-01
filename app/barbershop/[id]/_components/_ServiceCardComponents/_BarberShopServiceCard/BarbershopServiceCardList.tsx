@@ -10,14 +10,14 @@ interface IBarbershopServiceCardListProps {
 const BarbershopServiceCardList = ({ services }: IBarbershopServiceCardListProps) => {
   if (services.length === 0) {
     return (
-      <div className="px-5 py-10 text-center text-muted-foreground text-sm">
+      <div className="py-10 text-center text-muted-foreground text-sm">
         Este barbeiro ainda não tem serviços cadastrados.
       </div>
     );
   }
 
   return (
-    <ul className="px-5 flex flex-col gap-3 py-6">
+    <ul className="flex flex-col gap-3 py-2">
       {services.map((service) => (
         <BarberShopServiceCard service={service} key={service.id} />
       ))}

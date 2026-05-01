@@ -1,9 +1,12 @@
 "use client";
 
-import { Card, CardContent } from "@/app/_components/ui/card";
 import { Shuffle } from "lucide-react";
-import useBarbershopServices from "../_ServiceComponent/model";
+
+import Container from "@/app/_components/Container";
+import { Card, CardContent } from "@/app/_components/ui/card";
+
 import BarberCard from "./BarberCard";
+import useBarbershopServices from "../_ServiceComponent/model";
 import type { BarberWithServices } from "../../_actions/findBarbershopWithBarbers";
 
 interface IBarberSelectStepProps {
@@ -24,17 +27,19 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
 
   if (barbers.length === 0) {
     return (
-      <div className="px-5 py-10 text-center text-muted-foreground">
+      <Container as="section" className="py-10 text-center text-muted-foreground">
         Esta barbearia ainda não tem barbeiros cadastrados.
-      </div>
+      </Container>
     );
   }
 
   return (
-    <section className="px-5 py-6">
-      <h2 className="text-xs uppercase text-muted-foreground font-bold mb-3">Escolha um barbeiro</h2>
+    <Container as="section" className="py-6 lg:py-10">
+      <h2 className="mb-4 text-xs uppercase text-muted-foreground font-bold tracking-wider lg:text-sm">
+        Escolha um barbeiro
+      </h2>
 
-      <div className="flex flex-col gap-3">
+      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
         <Card
           role="button"
           tabIndex={0}
@@ -45,15 +50,17 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
               handleRandom();
             }
           }}
-          className="cursor-pointer border-dashed transition-colors hover:border-primary focus-visible:border-primary focus-visible:outline-none"
+          className="cursor-pointer border-dashed transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-accent hover:shadow-card-hover focus-visible:border-accent focus-visible:outline-none"
         >
           <CardContent className="p-3 flex items-center gap-3">
-            <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-              <Shuffle className="text-primary" size={24} />
+            <div className="h-16 w-16 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0 shadow-soft">
+              <Shuffle className="text-white" size={22} />
             </div>
             <div className="flex flex-col">
-              <h3 className="font-bold">Qualquer barbeiro</h3>
-              <span className="text-xs text-muted-foreground">Escolhemos um disponível para você</span>
+              <h3 className="font-bold tracking-tight">Qualquer barbeiro</h3>
+              <span className="text-xs text-muted-foreground">
+                Escolhemos um disponível para você
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -62,7 +69,7 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
           <BarberCard key={barber.id} barber={barber} shopId={shopId} onSelect={handleSelect} />
         ))}
       </div>
-    </section>
+    </Container>
   );
 };
 
