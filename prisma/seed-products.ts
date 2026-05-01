@@ -5,21 +5,22 @@ const db = new PrismaClient();
 interface ProductTemplate {
   name: string;
   description: string;
-  imageTags: string;
-  imageSeed: string;
+  imageUrl: string;
   price: number;
   category: ProductCategory;
   stockMin: number;
   stockMax: number;
 }
 
+// Each product points to a verified Wikimedia Commons URL (public domain / CC license).
+// All URLs were checked with HEAD requests during seed authoring.
 const PRODUCT_CATALOG: ProductTemplate[] = [
   // BEBIDAS
   {
     name: "Cerveja Heineken 350ml",
     description: "Long neck gelado, ideal pra acompanhar o corte.",
-    imageTags: "heineken,beer,bottle",
-    imageSeed: "heineken-bottle",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/9/96/Heineken_Bottle.jpg",
     price: 8,
     category: "DRINK",
     stockMin: 12,
@@ -28,8 +29,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Coca-Cola Lata 350ml",
     description: "Refrigerante clássico geladinho.",
-    imageTags: "coca-cola,can,soda",
-    imageSeed: "cocacola-can",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/3/3d/Coca-Cola_lata.jpg",
     price: 6,
     category: "DRINK",
     stockMin: 20,
@@ -38,8 +39,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Água Mineral 500ml",
     description: "Água sem gás na temperatura ambiente.",
-    imageTags: "water,bottle,mineral",
-    imageSeed: "water-bottle",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/0/02/Stilles_Mineralwasser.jpg",
     price: 4,
     category: "DRINK",
     stockMin: 25,
@@ -48,8 +49,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Red Bull Energético 250ml",
     description: "Energético pra renovar o astral.",
-    imageTags: "redbull,energy,drink",
-    imageSeed: "redbull-can",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/d/d4/Red_Bull_energy_drinks.jpg",
     price: 12,
     category: "DRINK",
     stockMin: 6,
@@ -60,8 +61,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Pomada Modeladora 100g",
     description: "Fixação forte com efeito matte natural.",
-    imageTags: "pomade,hair,jar",
-    imageSeed: "hair-pomade",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/c/cb/Can_of_Pomade_%28Royal_Crown%29.jpg",
     price: 38,
     category: "HAIR_CARE",
     stockMin: 5,
@@ -70,8 +71,7 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Gel Fixador Premium",
     description: "Modelagem firme sem deixar resíduos brancos.",
-    imageTags: "hair-gel,styling,bottle",
-    imageSeed: "hair-gel",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/5/55/Hair_gel.jpg",
     price: 22,
     category: "HAIR_CARE",
     stockMin: 8,
@@ -80,18 +80,17 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Cera Modeladora Matte",
     description: "Acabamento seco com fixação média.",
-    imageTags: "hair-wax,matte,jar",
-    imageSeed: "hair-wax",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/4/48/Hair_wax.jpg",
     price: 32,
     category: "HAIR_CARE",
     stockMin: 5,
     stockMax: 14,
   },
   {
-    name: "Shampoo Profissional 250ml",
-    description: "Limpeza profunda sem ressecar os fios.",
-    imageTags: "shampoo,bottle,bathroom",
-    imageSeed: "shampoo-pro",
+    name: "Shampoo Dove 250ml",
+    description: "Limpeza diária sem ressecar os fios.",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/6/68/Dove_shampoo_bottle.jpg",
     price: 45,
     category: "HAIR_CARE",
     stockMin: 4,
@@ -102,8 +101,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Óleo de Barba 30ml",
     description: "Hidrata, amacia e perfuma a barba.",
-    imageTags: "beard-oil,grooming,bottle",
-    imageSeed: "beard-oil",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/6/67/Beard_Oil_and_Brush.jpg",
     price: 38,
     category: "BEARD_CARE",
     stockMin: 6,
@@ -111,9 +110,9 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   },
   {
     name: "Balm Hidratante 50g",
-    description: "Controla volume e mantém a barba alinhada.",
-    imageTags: "beard-balm,grooming,jar",
-    imageSeed: "beard-balm",
+    description: "Pote cremoso pra hidratar e alinhar a barba.",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/0/0f/Day_cream_02.jpg",
     price: 32,
     category: "BEARD_CARE",
     stockMin: 5,
@@ -122,19 +121,16 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
 
   // ACESSÓRIOS
   {
-    name: "Pente de Madeira",
-    description: "Pente artesanal antiestático em madeira nobre.",
-    imageTags: "wooden-comb,barber,grooming",
-    imageSeed: "wooden-comb",
+    name: "Pente Profissional",
+    description: "Pente antiestático ideal pra finalização.",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/4/4a/Plastic_comb%2C_2015-06-07.jpg",
     price: 18,
     category: "ACCESSORY",
     stockMin: 8,
     stockMax: 25,
   },
 ];
-
-const imageUrl = (tags: string, seed: string, shopIdx: number) =>
-  `https://loremflickr.com/600/600/${tags}/all?lock=${shopIdx}-${seed}`;
 
 const randomBetween = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -171,7 +167,7 @@ async function main() {
       barbershopId: shop.id,
       name: tpl.name,
       description: tpl.description,
-      imageUrl: imageUrl(tpl.imageTags, tpl.imageSeed, idx),
+      imageUrl: tpl.imageUrl,
       price: new Prisma.Decimal(tpl.price),
       stock: randomBetween(tpl.stockMin, tpl.stockMax),
       category: tpl.category,
