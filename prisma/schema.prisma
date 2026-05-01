@@ -20,6 +20,22 @@ enum Theme {
   SYSTEM
 }
 
+enum ProductCategory {
+  DRINK
+  HAIR_CARE
+  BEARD_CARE
+  ACCESSORY
+  OTHER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  READY
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id            String             @id @default(cuid())
   name          String?
@@ -34,6 +50,7 @@ model User {
   ownedShops    Barbershop[]       @relation("ShopOwner")
   barberProfile Barber?            @relation("BarberAccount")
   notesAbout    BarberClientNote[] @relation("ClientNotes")
+  Order         Order[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
@@ -49,6 +66,8 @@ model Barbershop {
   ownerId   String?
   owner     User?     @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   Barbers   Barber[]
+  Products  Product[]
+  Orders    Order[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -182,4 +201,55 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Product {
+  id           String          @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop      @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  imageUrl     String
+  price        Decimal         @db.Decimal(10, 2)
+  stock        Int             @default(0)
+  category     ProductCategory @default(OTHER)
+  active       Boolean         @default(true)
+  orderItems   OrderItem[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([barbershopId])
+  @@index([barbershopId, active])
+  @@index([barbershopId, category])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershopId String
+  barbershop   Barbershop  @relation(fields: [barbershopId], references: [id], onDelete: Restrict)
+  status       OrderStatus @default(PENDING)
+  total        Decimal     @db.Decimal(10, 2)
+  notes        String?
+  items        OrderItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([barbershopId, status])
+  @@index([barbershopId, createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([productId])
 }
