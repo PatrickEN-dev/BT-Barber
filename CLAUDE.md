@@ -104,9 +104,19 @@ This is a SaaS handling user PII, bookings and orders. The threat model + invari
 - `EXECUTE` on `public.rls_auto_enable()` is granted only to `postgres` and `service_role`, not to `anon`/`authenticated`.
 - All authorization decisions therefore live **in application code** (server actions). Adding RLS policies in the future is fine, but do not rely on RLS as the sole gate — Prisma still uses the bypass role.
 
-**5. Security headers** (`next.config.mjs`): `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security` for two years, `Permissions-Policy` denying camera/microphone/geolocation/interest-cohort, `X-XSS-Protection`, `poweredByHeader: false`. CSP is **not** set yet — Next 14 with inline script chunks needs nonces via middleware to do CSP cleanly. Adding CSP is a follow-up: run with `script-src 'self' 'nonce-...'` and verify all third-party origins (Google for OAuth pop-ups, Supabase for image hosts) are allow-listed.
+**5. Security headers** (`next.config.mjs`): `Content-Security-Policy` (allow-list for Supabase/Google/Wikimedia/Unsplash/etc, `frame-ancestors 'none'`, `object-src 'none'`, with `'unsafe-inline'` for scripts/styles because Next 14 inline boot + Tailwind), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security` for two years, `Permissions-Policy` denying camera/microphone/geolocation/interest-cohort, `X-XSS-Protection`, `poweredByHeader: false`. CSP allows `'unsafe-eval'` in dev only (Next HMR). Tightening CSP further means switching to nonces via `middleware.ts` and removing `'unsafe-inline'` — that's a future hardening pass.
 
-**6. Threats explicitly out of scope (documented gaps):** No rate limiting on server actions (mitigated by NextAuth's CSRF token + same-origin requirement, but a determined attacker with a logged-in session could still spam). No audit log for owner actions on orders/products. No CSP (see above).
+**6. Audit log** (`app/_lib/audit.ts` + `AuditLog` table). Mutations write a fire-and-forget audit record with `userId`, `action`, optional `barbershopId` + `targetType` + `targetId` + `metadata`. Helper **never throws** (audit failures are logged but don't break the action). Currently instrumented on: `BOOKING_CREATE`/`CANCEL`, `ORDER_CREATE`/`STATUS_UPDATE`/`CANCEL`, `PRODUCT_CREATE`/`UPDATE`/`TOGGLE_ACTIVE`/`DELETE`, `SHOP_SETTINGS_UPDATE`, `SERVICE_CREATE`/`UPDATE`/`DELETE`. Read via Prisma Studio for now (no admin UI yet).
+
+**7. Rate limiting** (`app/_lib/rateLimit.ts` + `RateLimit` table). Postgres-backed (no Redis dep) — atomic counter per `key`, expires on a sliding window inside a Serializable transaction. Throws `RateLimitExceededError` (extends Error) when budget exhausted; the message includes `retryAfterSeconds`. Apply with `await rateLimit(key, { max, windowMs })`. Conventions:
+  - User-scoped key: `user:${session.user.id}:actionName`. Current limits: `cancelBooking` 10/min, `cancelOrder` 20/min, `createOrder` 15/min, `saveBooking` 10/min, `updateOrderStatus` 60/min (admin can do bulk).
+  - Shop-scoped key: `shop:${shopId}:productMutate` 30/min (covers create/update/toggle/delete combined), `shop:${shopId}:serviceMutate` 30/min, `shop:${shopId}:settings` 10/min.
+  - The `RateLimit` table grows over time — `cleanupExpiredRateLimits()` is exposed for occasional batch cleanup; call from a cron when traffic justifies it.
+
+**8. Threats explicitly out of scope (documented gaps):**
+  - No admin UI for the audit log yet (read via Prisma Studio).
+  - No CSP nonces — `'unsafe-inline'` is allowed for scripts/styles. Tightening to nonces is the next CSP iteration.
+  - User-pasted product image URLs are validated for `http(s)://` protocol but not for actual image content-type. We use `<Image unoptimized>` so no server-side proxy fetch happens; the click target is always the parent `<Link>`, so phishing surface is small but non-zero. Long-term mitigation: switch product images to UploadThing-hosted uploads (utfs.io already whitelisted).
 
 ### Auth model
 

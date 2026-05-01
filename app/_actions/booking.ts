@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/app/_lib/auth";
+import { audit } from "@/app/_lib/audit";
 import { db } from "@/app/_lib/prisma";
+import { rateLimit } from "@/app/_lib/rateLimit";
 import { serializeBookingWithRelations } from "@/app/_lib/serializers";
 
 import { UnauthorizedError } from "./_errors";
@@ -46,6 +48,11 @@ export const cancelBooking = async (bookingId: string) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new UnauthorizedError();
 
+  await rateLimit(`user:${session.user.id}:cancelBooking`, {
+    max: 10,
+    windowMs: 60_000,
+  });
+
   // deleteMany + scoped where = either own booking is deleted (count: 1) or nothing happens (count: 0).
   // We never trust the bookingId to belong to the caller — the WHERE clause enforces it atomically.
   const result = await db.booking.deleteMany({
@@ -53,6 +60,13 @@ export const cancelBooking = async (bookingId: string) => {
   });
 
   if (result.count === 0) throw new UnauthorizedError();
+
+  await audit({
+    userId: session.user.id,
+    action: "BOOKING_CANCEL",
+    targetType: "Booking",
+    targetId: bookingId,
+  });
 
   revalidatePath("/");
   revalidatePath("/bookings");

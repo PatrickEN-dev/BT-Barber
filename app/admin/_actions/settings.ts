@@ -1,7 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import { audit } from "@/app/_lib/audit";
 import { db } from "@/app/_lib/prisma";
+import { rateLimit } from "@/app/_lib/rateLimit";
+
 import { requireShopAccess } from "../_utils/requireOwner";
 
 interface SettingsPayload {
@@ -13,7 +17,8 @@ interface SettingsPayload {
 }
 
 export const updateShopSettings = async (shopId: string, payload: SettingsPayload) => {
-  await requireShopAccess(shopId);
+  const { user } = await requireShopAccess(shopId);
+  await rateLimit(`shop:${shopId}:settings`, { max: 10, windowMs: 60_000 });
 
   const name = payload.name.trim();
   const address = payload.address.trim();
@@ -52,4 +57,13 @@ export const updateShopSettings = async (shopId: string, payload: SettingsPayloa
   revalidatePath(`/admin/${shopId}/products`);
   revalidatePath(`/barbershop/${shopId}`);
   revalidatePath("/");
+
+  await audit({
+    userId: user.id,
+    action: "SHOP_SETTINGS_UPDATE",
+    barbershopId: shopId,
+    targetType: "Barbershop",
+    targetId: shopId,
+    metadata: { hasShop: payload.hasShop },
+  });
 };

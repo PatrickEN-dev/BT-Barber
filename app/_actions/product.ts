@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/app/_lib/auth";
+import { audit } from "@/app/_lib/audit";
 import { db } from "@/app/_lib/prisma";
+import { rateLimit } from "@/app/_lib/rateLimit";
 import { serializeProduct, type SerializedProduct } from "@/app/_lib/serializers";
 
 import { UnauthorizedError } from "./_errors";
@@ -43,6 +45,7 @@ const requireOwnerOf = async (barbershopId: string) => {
     select: { id: true },
   });
   if (!shop) throw new UnauthorizedError();
+  return session.user.id;
 };
 
 const isHttpsUrl = (raw: string) => {
@@ -72,7 +75,11 @@ const validate = (input: ProductInput) => {
 };
 
 export const createProduct = async (barbershopId: string, input: ProductInput) => {
-  await requireOwnerOf(barbershopId);
+  const userId = await requireOwnerOf(barbershopId);
+  await rateLimit(`shop:${barbershopId}:productMutate`, {
+    max: 30,
+    windowMs: 60_000,
+  });
   validate(input);
 
   const product = await db.product.create({
@@ -91,6 +98,15 @@ export const createProduct = async (barbershopId: string, input: ProductInput) =
   revalidatePath(`/admin/${barbershopId}/products`);
   revalidatePath(`/barbershop/${barbershopId}`);
 
+  await audit({
+    userId,
+    action: "PRODUCT_CREATE",
+    barbershopId,
+    targetType: "Product",
+    targetId: product.id,
+    metadata: { name: product.name, price: product.price.toString() },
+  });
+
   return serializeProduct(product);
 };
 
@@ -100,7 +116,11 @@ export const updateProduct = async (productId: string, input: ProductInput) => {
     select: { barbershopId: true },
   });
   if (!existing) throw new Error("Produto não encontrado.");
-  await requireOwnerOf(existing.barbershopId);
+  const userId = await requireOwnerOf(existing.barbershopId);
+  await rateLimit(`shop:${existing.barbershopId}:productMutate`, {
+    max: 30,
+    windowMs: 60_000,
+  });
   validate(input);
 
   const product = await db.product.update({
@@ -119,6 +139,14 @@ export const updateProduct = async (productId: string, input: ProductInput) => {
   revalidatePath(`/admin/${existing.barbershopId}/products`);
   revalidatePath(`/barbershop/${existing.barbershopId}`);
 
+  await audit({
+    userId,
+    action: "PRODUCT_UPDATE",
+    barbershopId: existing.barbershopId,
+    targetType: "Product",
+    targetId: productId,
+  });
+
   return serializeProduct(product);
 };
 
@@ -128,7 +156,11 @@ export const toggleProductActive = async (productId: string) => {
     select: { barbershopId: true, active: true },
   });
   if (!existing) throw new Error("Produto não encontrado.");
-  await requireOwnerOf(existing.barbershopId);
+  const userId = await requireOwnerOf(existing.barbershopId);
+  await rateLimit(`shop:${existing.barbershopId}:productMutate`, {
+    max: 30,
+    windowMs: 60_000,
+  });
 
   await db.product.update({
     where: { id: productId },
@@ -137,6 +169,15 @@ export const toggleProductActive = async (productId: string) => {
 
   revalidatePath(`/admin/${existing.barbershopId}/products`);
   revalidatePath(`/barbershop/${existing.barbershopId}`);
+
+  await audit({
+    userId,
+    action: "PRODUCT_TOGGLE_ACTIVE",
+    barbershopId: existing.barbershopId,
+    targetType: "Product",
+    targetId: productId,
+    metadata: { active: !existing.active },
+  });
 };
 
 export const deleteProduct = async (productId: string) => {
@@ -145,9 +186,14 @@ export const deleteProduct = async (productId: string) => {
     select: { barbershopId: true, _count: { select: { orderItems: true } } },
   });
   if (!existing) throw new Error("Produto não encontrado.");
-  await requireOwnerOf(existing.barbershopId);
+  const userId = await requireOwnerOf(existing.barbershopId);
+  await rateLimit(`shop:${existing.barbershopId}:productMutate`, {
+    max: 30,
+    windowMs: 60_000,
+  });
 
-  if (existing._count.orderItems > 0) {
+  const softDelete = existing._count.orderItems > 0;
+  if (softDelete) {
     await db.product.update({
       where: { id: productId },
       data: { active: false },
@@ -158,4 +204,13 @@ export const deleteProduct = async (productId: string) => {
 
   revalidatePath(`/admin/${existing.barbershopId}/products`);
   revalidatePath(`/barbershop/${existing.barbershopId}`);
+
+  await audit({
+    userId,
+    action: "PRODUCT_DELETE",
+    barbershopId: existing.barbershopId,
+    targetType: "Product",
+    targetId: productId,
+    metadata: { softDelete },
+  });
 };

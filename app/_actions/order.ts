@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/app/_lib/auth";
+import { audit } from "@/app/_lib/audit";
 import { db } from "@/app/_lib/prisma";
+import { rateLimit } from "@/app/_lib/rateLimit";
 import {
   serializeOrderWithRelations,
   type SerializedOrderWithRelations,
@@ -39,6 +41,8 @@ export const createOrder = async (
   if (items.length === 0) throw new EmptyCartError();
 
   const userId = session.user.id;
+
+  await rateLimit(`user:${userId}:createOrder`, { max: 15, windowMs: 60_000 });
 
   const order = await db.$transaction(async (tx) => {
     const productIds = items.map((i) => i.productId);
@@ -84,6 +88,15 @@ export const createOrder = async (
   revalidatePath("/orders");
   revalidatePath(`/admin/${input.barbershopId}/orders`);
 
+  await audit({
+    userId,
+    action: "ORDER_CREATE",
+    barbershopId: input.barbershopId,
+    targetType: "Order",
+    targetId: order.id,
+    metadata: { total: order.total.toString(), itemCount: items.length },
+  });
+
   return serializeOrderWithRelations(order);
 };
 
@@ -128,7 +141,12 @@ export const cancelOrder = async (orderId: string) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new UnauthorizedError();
 
-  await db.$transaction(async (tx) => {
+  await rateLimit(`user:${session.user.id}:cancelOrder`, {
+    max: 20,
+    windowMs: 60_000,
+  });
+
+  const cancelledOrder = await db.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
       include: { items: true, barbershop: true },
@@ -160,15 +178,30 @@ export const cancelOrder = async (orderId: string) => {
       where: { id: orderId },
       data: { status: "CANCELLED" },
     });
+
+    return { barbershopId: order.barbershopId };
   });
 
   revalidatePath("/orders");
   revalidatePath("/admin");
+
+  await audit({
+    userId: session.user.id,
+    action: "ORDER_CANCEL",
+    barbershopId: cancelledOrder.barbershopId,
+    targetType: "Order",
+    targetId: orderId,
+  });
 };
 
 export const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new UnauthorizedError();
+
+  await rateLimit(`user:${session.user.id}:updateOrderStatus`, {
+    max: 60,
+    windowMs: 60_000,
+  });
 
   const order = await db.order.findUnique({
     where: { id: orderId },
@@ -182,4 +215,13 @@ export const updateOrderStatus = async (orderId: string, status: OrderStatus) =>
   await db.order.update({ where: { id: orderId }, data: { status } });
   revalidatePath(`/admin/${order.barbershopId}/orders`);
   revalidatePath("/orders");
+
+  await audit({
+    userId: session.user.id,
+    action: "ORDER_STATUS_UPDATE",
+    barbershopId: order.barbershopId,
+    targetType: "Order",
+    targetId: orderId,
+    metadata: { from: order.status, to: status },
+  });
 };

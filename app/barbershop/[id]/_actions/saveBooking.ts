@@ -1,8 +1,15 @@
 "use server";
 
-import { db } from "@/app/_lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+
+import { UnauthorizedError } from "@/app/_actions/_errors";
+import { authOptions } from "@/app/_lib/auth";
+import { audit } from "@/app/_lib/audit";
+import { db } from "@/app/_lib/prisma";
+import { rateLimit } from "@/app/_lib/rateLimit";
+
 import { BookingSlotTakenError } from "./_errors";
 
 interface ISaveBookingProps {
@@ -20,8 +27,21 @@ export const saveBooking = async ({
   date,
   serviceIds,
 }: ISaveBookingProps) => {
+  // Auth + IDOR guard: never trust the userId param. Derive it from the session
+  // and require it to match what the client sent. This keeps the function shape
+  // stable for callers while preventing impersonation.
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.id !== userId) {
+    throw new UnauthorizedError();
+  }
+
+  await rateLimit(`user:${userId}:saveBooking`, { max: 10, windowMs: 60_000 });
+
   if (serviceIds.length === 0) {
     throw new Error("Selecione ao menos um serviço.");
+  }
+  if (serviceIds.length > 20) {
+    throw new Error("Máximo 20 serviços por reserva.");
   }
 
   // Bloqueia se cair dentro de uma janela de indisponibilidade do barbeiro
@@ -37,8 +57,10 @@ export const saveBooking = async ({
     throw new BookingSlotTakenError();
   }
 
+  let bookingId: string | null = null;
+
   try {
-    await db.booking.create({
+    const booking = await db.booking.create({
       data: {
         barbershopId,
         barberId,
@@ -48,7 +70,9 @@ export const saveBooking = async ({
           create: serviceIds.map((serviceId) => ({ serviceId })),
         },
       },
+      select: { id: true },
     });
+    bookingId = booking.id;
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       throw new BookingSlotTakenError();
@@ -58,4 +82,15 @@ export const saveBooking = async ({
 
   revalidatePath("/");
   revalidatePath("/bookings");
+
+  if (bookingId) {
+    await audit({
+      userId,
+      action: "BOOKING_CREATE",
+      barbershopId,
+      targetType: "Booking",
+      targetId: bookingId,
+      metadata: { barberId, serviceCount: serviceIds.length },
+    });
+  }
 };

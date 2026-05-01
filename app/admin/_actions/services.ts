@@ -2,9 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+
+import { audit } from "@/app/_lib/audit";
 import { db } from "@/app/_lib/prisma";
-import { requireShopAccess } from "../_utils/requireOwner";
+import { rateLimit } from "@/app/_lib/rateLimit";
 import { serializeService } from "@/app/_lib/serializers";
+
+import { requireShopAccess } from "../_utils/requireOwner";
 
 export const listShopServices = async (shopId: string) => {
   await requireShopAccess(shopId);
@@ -44,15 +48,25 @@ const validate = (payload: ServicePayload) => {
 };
 
 export const createShopService = async (shopId: string, payload: ServicePayload) => {
-  await requireShopAccess(shopId);
+  const { user } = await requireShopAccess(shopId);
+  await rateLimit(`shop:${shopId}:serviceMutate`, { max: 30, windowMs: 60_000 });
   const data = validate(payload);
 
-  await db.service.create({
+  const service = await db.service.create({
     data: { ...data, barbershopId: shopId },
   });
 
   revalidatePath(`/admin/${shopId}/services`);
   revalidatePath(`/barbershop/${shopId}`);
+
+  await audit({
+    userId: user.id,
+    action: "SERVICE_CREATE",
+    barbershopId: shopId,
+    targetType: "Service",
+    targetId: service.id,
+    metadata: { name: service.name, price: service.price.toString() },
+  });
 };
 
 export const updateShopService = async (
@@ -60,7 +74,8 @@ export const updateShopService = async (
   serviceId: string,
   payload: ServicePayload
 ) => {
-  await requireShopAccess(shopId);
+  const { user } = await requireShopAccess(shopId);
+  await rateLimit(`shop:${shopId}:serviceMutate`, { max: 30, windowMs: 60_000 });
   const data = validate(payload);
 
   await db.service.update({
@@ -70,10 +85,19 @@ export const updateShopService = async (
 
   revalidatePath(`/admin/${shopId}/services`);
   revalidatePath(`/barbershop/${shopId}`);
+
+  await audit({
+    userId: user.id,
+    action: "SERVICE_UPDATE",
+    barbershopId: shopId,
+    targetType: "Service",
+    targetId: serviceId,
+  });
 };
 
 export const deleteShopService = async (shopId: string, serviceId: string) => {
-  await requireShopAccess(shopId);
+  const { user } = await requireShopAccess(shopId);
+  await rateLimit(`shop:${shopId}:serviceMutate`, { max: 30, windowMs: 60_000 });
 
   try {
     await db.service.delete({
@@ -88,4 +112,12 @@ export const deleteShopService = async (shopId: string, serviceId: string) => {
 
   revalidatePath(`/admin/${shopId}/services`);
   revalidatePath(`/barbershop/${shopId}`);
+
+  await audit({
+    userId: user.id,
+    action: "SERVICE_DELETE",
+    barbershopId: shopId,
+    targetType: "Service",
+    targetId: serviceId,
+  });
 };
