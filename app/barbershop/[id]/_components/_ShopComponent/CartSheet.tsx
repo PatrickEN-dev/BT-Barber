@@ -16,6 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/app/_components/ui/sheet";
+import CheckoutDialog from "@/app/_components/checkout/CheckoutDialog";
 import { Input } from "@/app/_components/ui/input";
 import { useAuthGuard } from "@/app/_hooks/useAuthGuard";
 import { cn } from "@/app/_lib/utils";
@@ -43,6 +44,9 @@ const CartSheet = ({ shopId, shopName, trigger }: ICartSheetProps) => {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [checkoutOrder, setCheckoutOrder] = useState<{ id: string; total: string } | null>(
+    null
+  );
 
   const isThisShop = cartShopId === shopId;
   const showItems = isThisShop && items.length > 0;
@@ -53,18 +57,15 @@ const CartSheet = ({ shopId, shopName, trigger }: ICartSheetProps) => {
 
     setSubmitting(true);
     try {
-      await createOrder({
+      const order = await createOrder({
         barbershopId: shopId,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         notes,
       });
-      clear();
-      setNotes("");
+      // Cart is preserved until payment completes (in case user closes the
+      // checkout and wants to retry). It's cleared by handlePaid().
       setOpen(false);
-      toast.success("Pedido enviado!", {
-        description: `${shopName} já recebeu seu pedido.`,
-        action: { label: "Ver pedidos", onClick: () => router.push("/orders") },
-      });
+      setCheckoutOrder({ id: order.id, total: order.total });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Não foi possível concluir o pedido.";
@@ -72,6 +73,16 @@ const CartSheet = ({ shopId, shopName, trigger }: ICartSheetProps) => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePaid = () => {
+    clear();
+    setNotes("");
+    setCheckoutOrder(null);
+    toast.success("Pedido confirmado!", {
+      description: `${shopName} já recebeu o pagamento.`,
+      action: { label: "Ver pedidos", onClick: () => router.push("/orders") },
+    });
   };
 
   return (
@@ -213,6 +224,18 @@ const CartSheet = ({ shopId, shopName, trigger }: ICartSheetProps) => {
           </div>
         )}
       </SheetContent>
+
+      {checkoutOrder && (
+        <CheckoutDialog
+          open={!!checkoutOrder}
+          onOpenChange={(next) => {
+            if (!next) setCheckoutOrder(null);
+          }}
+          orderId={checkoutOrder.id}
+          totalBRL={checkoutOrder.total}
+          onPaid={handlePaid}
+        />
+      )}
     </Sheet>
   );
 };
