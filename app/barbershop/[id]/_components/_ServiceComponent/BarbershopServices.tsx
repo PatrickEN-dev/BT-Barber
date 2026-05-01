@@ -3,7 +3,6 @@
 import { ChevronLeft, ScissorsIcon } from "lucide-react";
 import { useEffect } from "react";
 
-import Container from "@/app/_components/Container";
 import { Button } from "@/app/_components/ui/button";
 import { Sheet } from "@/app/_components/ui/sheet";
 import { formatPrice } from "@/app/_utils/formatPrices";
@@ -56,7 +55,7 @@ const BarbershopServices = ({ barbershopData }: IBarbershopServicesProps) => {
 
   return (
     <Sheet open={sheetIsOpen} onOpenChange={setSheetIsOpen}>
-      <Container as="section" className="py-4 lg:py-8">
+      <section className="py-4 lg:py-6">
         <div className="flex items-center justify-between gap-3 lg:mb-6">
           <button
             type="button"
@@ -132,7 +131,7 @@ const BarbershopServices = ({ barbershopData }: IBarbershopServicesProps) => {
             </div>
           </aside>
         </div>
-      </Container>
+      </section>
 
       {/* Mobile sticky bottom bar */}
       <div className="sticky bottom-0 left-0 right-0 z-20 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-5 py-4 backdrop-blur-md lg:hidden">

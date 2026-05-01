@@ -2,7 +2,6 @@
 
 import { Shuffle } from "lucide-react";
 
-import Container from "@/app/_components/Container";
 import { Card, CardContent } from "@/app/_components/ui/card";
 
 import BarberCard from "./BarberCard";
@@ -27,14 +26,14 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
 
   if (barbers.length === 0) {
     return (
-      <Container as="section" className="py-10 text-center text-muted-foreground">
+      <section className="py-10 text-center text-muted-foreground">
         Esta barbearia ainda não tem barbeiros cadastrados.
-      </Container>
+      </section>
     );
   }
 
   return (
-    <Container as="section" className="py-6 lg:py-10">
+    <section className="py-6 lg:py-8">
       <h2 className="mb-4 text-xs uppercase text-muted-foreground font-bold tracking-wider lg:text-sm">
         Escolha um barbeiro
       </h2>
@@ -69,7 +68,7 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
           <BarberCard key={barber.id} barber={barber} shopId={shopId} onSelect={handleSelect} />
         ))}
       </div>
-    </Container>
+    </section>
   );
 };
 
