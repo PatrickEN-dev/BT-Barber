@@ -8,6 +8,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import OrderStatusBadge from "@/app/_components/orders/OrderStatusBadge";
+import PaymentStatusBadge from "@/app/_components/orders/PaymentStatusBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +65,15 @@ const UserOrderCard = ({ order }: IUserOrderCardProps) => {
               {order.barbershop.name}
             </h3>
           </div>
-          <OrderStatusBadge status={order.status} />
+          <div className="flex flex-col items-end gap-1">
+            <OrderStatusBadge status={order.status} />
+            {order.payment && (
+              <PaymentStatusBadge
+                status={order.payment.status}
+                method={order.payment.method}
+              />
+            )}
+          </div>
         </header>
 
         <button

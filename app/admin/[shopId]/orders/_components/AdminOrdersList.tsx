@@ -8,12 +8,14 @@ import { useState } from "react";
 import OrderStatusBadge, {
   orderStatusLabel,
 } from "@/app/_components/orders/OrderStatusBadge";
+import PaymentStatusBadge from "@/app/_components/orders/PaymentStatusBadge";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import { cn } from "@/app/_lib/utils";
 import { formatPrice } from "@/app/_utils/formatPrices";
 import type { SerializedOrderWithRelations } from "@/app/_lib/serializers";
 
 import OrderActions from "./OrderActions";
+import RefundButton from "./RefundButton";
 
 interface AdminOrdersListProps {
   orders: SerializedOrderWithRelations[];
@@ -126,10 +128,29 @@ const AdminOrdersList = ({ orders }: AdminOrdersListProps) => {
                       {formatPrice(order.total)}
                     </td>
                     <td className="px-4 py-3">
-                      <OrderStatusBadge status={order.status} />
+                      <div className="flex flex-col items-start gap-1">
+                        <OrderStatusBadge status={order.status} />
+                        {order.payment && (
+                          <PaymentStatusBadge
+                            status={order.payment.status}
+                            method={order.payment.method}
+                          />
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <OrderActions orderId={order.id} status={order.status} />
+                      <div className="flex items-center justify-end gap-1">
+                        <OrderActions orderId={order.id} status={order.status} />
+                        {order.payment &&
+                          (order.payment.status === "PAID" ||
+                            order.payment.status === "PARTIAL_REFUND") && (
+                            <RefundButton
+                              paymentId={order.payment.id}
+                              amount={order.payment.amount}
+                              refundedAmount={order.payment.refundedAmount}
+                            />
+                          )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -152,7 +173,15 @@ const AdminOrdersList = ({ orders }: AdminOrdersListProps) => {
                           {order.userId.slice(0, 8)}…
                         </p>
                       </div>
-                      <OrderStatusBadge status={order.status} />
+                      <div className="flex flex-col items-end gap-1">
+                        <OrderStatusBadge status={order.status} />
+                        {order.payment && (
+                          <PaymentStatusBadge
+                            status={order.payment.status}
+                            method={order.payment.method}
+                          />
+                        )}
+                      </div>
                     </header>
 
                     <ul className="space-y-1 text-xs">
@@ -179,7 +208,18 @@ const AdminOrdersList = ({ orders }: AdminOrdersListProps) => {
                       <span className="text-base font-bold tabular-nums">
                         {formatPrice(order.total)}
                       </span>
-                      <OrderActions orderId={order.id} status={order.status} />
+                      <div className="flex items-center gap-1">
+                        <OrderActions orderId={order.id} status={order.status} />
+                        {order.payment &&
+                          (order.payment.status === "PAID" ||
+                            order.payment.status === "PARTIAL_REFUND") && (
+                            <RefundButton
+                              paymentId={order.payment.id}
+                              amount={order.payment.amount}
+                              refundedAmount={order.payment.refundedAmount}
+                            />
+                          )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

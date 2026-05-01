@@ -38,10 +38,22 @@ export const serializeProduct = (product: Product): SerializedProduct => ({
   price: product.price.toString(),
 });
 
+export type SerializedPayment = Omit<Payment, "amount" | "refundedAmount"> & {
+  amount: string;
+  refundedAmount: string;
+};
+
+export const serializePayment = (payment: Payment): SerializedPayment => ({
+  ...payment,
+  amount: payment.amount.toString(),
+  refundedAmount: payment.refundedAmount.toString(),
+});
+
 type OrderWithRelations = Prisma.OrderGetPayload<{
   include: {
     barbershop: true;
     items: { include: { product: true } };
+    payment: true;
   };
 }>;
 
@@ -53,9 +65,13 @@ export type SerializedOrderItem = Omit<
   product: SerializedProduct;
 };
 
-export type SerializedOrderWithRelations = Omit<OrderWithRelations, "total" | "items"> & {
+export type SerializedOrderWithRelations = Omit<
+  OrderWithRelations,
+  "total" | "items" | "payment"
+> & {
   total: string;
   items: SerializedOrderItem[];
+  payment: SerializedPayment | null;
 };
 
 export const serializeOrderWithRelations = (
@@ -68,15 +84,5 @@ export const serializeOrderWithRelations = (
     unitPrice: item.unitPrice.toString(),
     product: serializeProduct(item.product),
   })),
-});
-
-export type SerializedPayment = Omit<Payment, "amount" | "refundedAmount"> & {
-  amount: string;
-  refundedAmount: string;
-};
-
-export const serializePayment = (payment: Payment): SerializedPayment => ({
-  ...payment,
-  amount: payment.amount.toString(),
-  refundedAmount: payment.refundedAmount.toString(),
+  payment: order.payment ? serializePayment(order.payment) : null,
 });

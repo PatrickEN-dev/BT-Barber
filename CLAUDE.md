@@ -118,6 +118,51 @@ This is a SaaS handling user PII, bookings and orders. The threat model + invari
   - No CSP nonces — `'unsafe-inline'` is allowed for scripts/styles. Tightening to nonces is the next CSP iteration.
   - User-pasted product image URLs are validated for `http(s)://` protocol but not for actual image content-type. We use `<Image unoptimized>` so no server-side proxy fetch happens; the click target is always the parent `<Link>`, so phishing surface is small but non-zero. Long-term mitigation: switch product images to UploadThing-hosted uploads (utfs.io already whitelisted).
 
+### Payments (Stripe)
+
+Both `Order` (lojinha) and `Booking` (serviço) support online payment via **PIX** or **Cartão**, processed by **Stripe Brazil** (BRL settlement). The platform uses a **single Stripe account model** — money lands in BT-Barber's account, owner gets paid out-of-band. Stripe Connect (split payments per shop) is the next step when scaling — see comment near `app/_actions/payment.ts`.
+
+**Schema** ([prisma/schema.prisma](prisma/schema.prisma) `Payment` model):
+- 1:1 with either `Booking` or `Order` (XOR via two unique nullable FKs)
+- `externalId` = Stripe `payment_intent_id`
+- `method` (`PIX | CARD`) + `status` (`PENDING | PAID | FAILED | EXPIRED | REFUNDED | PARTIAL_REFUND | CANCELED`)
+- `qrCodeImage` + `qrCodeText` + `expiresAt` for PIX (null for card)
+- `refundedAmount` tracks partial refunds for cancellation fees
+
+**Server actions** ([app/_actions/payment.ts](app/_actions/payment.ts)):
+- `createOrderCheckout({orderId, method})` / `createBookingCheckout({bookingId, method})` — creates a Stripe `PaymentIntent`, persists `Payment` row. PIX returns the QR; card returns a `clientSecret` for Stripe Elements. Reuses an existing PENDING payment if user reopens the dialog.
+- `getPaymentStatus(paymentId)` — polling fallback in case the webhook is slow. Calls `stripe.paymentIntents.retrieve` and forwards the status if it advanced past PENDING.
+- `cancelBookingWithRefund(bookingId)` — customer-facing booking cancel with **tiered refund policy** (hard-coded in `computeRefund`): `≥24h before → 100% refund` / `2–24h → 50% (50% retained as fee)` / `<2h → 0% (100% retained)`. Stripe issues the refund; webhook later flips the Payment to `REFUNDED`/`PARTIAL_REFUND`.
+- `markBookingNoShow(bookingId)` — owner-only, post-booking-time. Sets `Booking.noShow = true`, retains 100% of payment as no-show fee. No Stripe refund issued.
+- `refundPaymentByOwner(paymentId)` — manual override for owners; refunds whatever's left after partial refunds.
+
+**Webhook** ([app/api/webhooks/stripe/route.ts](app/api/webhooks/stripe/route.ts)):
+- Endpoint: `/api/webhooks/stripe`. Verifies HMAC signature with `STRIPE_WEBHOOK_SECRET`.
+- **Idempotent**: every handler reads the `Payment` row and only transitions forward (PENDING → PAID never goes backward).
+- Handles `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`.
+- On `payment_intent.succeeded` for an Order, automatically transitions `Order.status` from PENDING → CONFIRMED.
+- Dev: run `stripe listen --forward-to localhost:3000/api/webhooks/stripe` — the CLI prints the `whsec_*` secret to put in `STRIPE_WEBHOOK_SECRET`.
+
+**UI** ([app/_components/checkout/](app/_components/checkout/)):
+- `<CheckoutDialog>` — modal with PIX/Cartão tabs. Generic over `kind: "order" | "booking"` + `targetId`.
+- `<PixPanel>` — renders QR + copia-cola code, polls `getPaymentStatus` every 3s as a fallback (webhook is the primary signal), countdown to expiration (30min default).
+- `<StripeCardForm>` — Stripe `<PaymentElement>` (handles card + 3DS challenges). Locale `pt-BR`, BRL.
+- Order checkout: triggered from `CartSheet` after `createOrder` returns. Cart is preserved until payment lands (in case user closes & retries).
+- Booking checkout: triggered from `BookingMenu` after `saveBooking` returns. Pre-payment is **recommended** — current flow opens checkout immediately after the slot is reserved, but the `Booking` row exists regardless of payment status (slot is held).
+
+**Status badges** ([app/_components/orders/](app/_components/orders/)): `<OrderStatusBadge>` for the order lifecycle, `<PaymentStatusBadge>` for the payment lifecycle. Admin shows both stacked; customer order card shows both.
+
+**Cancellation policy hard-coded constants** in `app/_actions/payment.ts`:
+- `HOURS_BEFORE_FULL_REFUND = 24`
+- `HOURS_BEFORE_HALF_REFUND = 2`
+Per-shop overrides are a future feature — when added, store on `Barbershop` (e.g. `cancellationPolicyHours: { full: 24, half: 2 }`).
+
+**Env vars** (see `.env.example`):
+- `STRIPE_SECRET_KEY` (`sk_test_*` / `sk_live_*`)
+- `STRIPE_WEBHOOK_SECRET` (`whsec_*` from `stripe listen` in dev, or from Dashboard > Webhooks in prod)
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_test_*` / `pk_live_*`)
+- CSP in `next.config.mjs` allows `js.stripe.com`, `api.stripe.com`, `hooks.stripe.com`, `m.stripe.network`. Don't remove these without verifying card flow still works (Stripe injects scripts + iframes).
+
 ### Auth model
 
 NextAuth with `PrismaAdapter` and Google provider, configured in `app/_lib/auth.ts`. `debug: true` is enabled only when `NODE_ENV === "development"`.

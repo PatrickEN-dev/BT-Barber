@@ -29,6 +29,7 @@ interface CreateOrderInput {
 const ORDER_INCLUDE = {
   barbershop: true,
   items: { include: { product: true } },
+  payment: true,
 } as const;
 
 export const createOrder = async (
