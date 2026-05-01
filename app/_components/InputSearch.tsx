@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 const formSchema = z.object({
   search: z
     .string({
-      required_error: "Campo obrigatório.",
+      error: "Campo obrigatório.",
     })
     .trim(),
 });
