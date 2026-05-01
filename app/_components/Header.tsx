@@ -1,6 +1,13 @@
 "use client";
 
-import { CalendarIcon, HomeIcon, MenuIcon, ScissorsIcon, UserIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  HomeIcon,
+  MenuIcon,
+  ScissorsIcon,
+  ShoppingBagIcon,
+  UserIcon,
+} from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 
@@ -20,6 +27,7 @@ const customerNav: NavItem[] = [
 const authedNav: NavItem[] = [
   ...customerNav,
   { label: "Agendamentos", href: "/bookings", icon: CalendarIcon },
+  { label: "Pedidos", href: "/orders", icon: ShoppingBagIcon },
 ];
 
 const Header = () => {

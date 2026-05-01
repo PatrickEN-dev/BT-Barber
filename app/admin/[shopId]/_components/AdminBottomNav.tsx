@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarIcon, LayoutDashboardIcon, ScissorsIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  LayoutDashboardIcon,
+  ScissorsIcon,
+  SettingsIcon,
+  ShoppingBagIcon,
+  UsersIcon,
+} from "lucide-react";
 import { cn } from "@/app/_lib/utils";
 
 interface IProps {
@@ -16,6 +23,7 @@ const AdminBottomNav = ({ shopId }: IProps) => {
   const items = [
     { href: `${base}/dashboard`, label: "Início", icon: LayoutDashboardIcon },
     { href: `${base}/bookings`, label: "Agenda", icon: CalendarIcon },
+    { href: `${base}/orders`, label: "Loja", icon: ShoppingBagIcon },
     { href: `${base}/barbers`, label: "Equipe", icon: ScissorsIcon },
     { href: `${base}/clients`, label: "Clientes", icon: UsersIcon },
     { href: `${base}/services`, label: "Ajustes", icon: SettingsIcon },
@@ -26,7 +34,7 @@ const AdminBottomNav = ({ shopId }: IProps) => {
       className="fixed bottom-0 inset-x-0 z-40 border-t border-secondary bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {items.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;

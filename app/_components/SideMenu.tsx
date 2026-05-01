@@ -10,6 +10,7 @@ import {
   LogInIcon,
   LogOutIcon,
   ScissorsIcon,
+  ShoppingBagIcon,
   StoreIcon,
   UserIcon,
   UserCircleIcon,
@@ -89,6 +90,13 @@ const SideMenu = () => {
               <Link href="/bookings">
                 <CalendarIcon size={18} className="mr-2" />
                 Agendamentos
+              </Link>
+            </Button>
+
+            <Button type="button" variant="outline" className="justify-start" asChild>
+              <Link href="/orders">
+                <ShoppingBagIcon size={18} className="mr-2" />
+                Meus pedidos
               </Link>
             </Button>
 
