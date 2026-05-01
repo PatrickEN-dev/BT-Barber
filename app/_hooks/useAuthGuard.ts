@@ -1,35 +1,30 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { useCallback } from "react";
-import { toast } from "sonner";
 
 interface EnsureAuthOptions {
-  redirectPath?: string;
-  description?: string;
+  callbackUrl?: string;
 }
 
 export const useAuthGuard = () => {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   const isLoading = status === "loading";
   const isAuthenticated = !!session?.user;
 
   const ensureAuth = useCallback(
-    ({ redirectPath = "/", description }: EnsureAuthOptions = {}) => {
+    ({ callbackUrl }: EnsureAuthOptions = {}) => {
       if (isLoading) return false;
       if (isAuthenticated) return true;
 
-      toast.error("Acesso negado", {
-        description:
-          description ?? "Você precisa fazer login para acessar esta funcionalidade.",
-      });
-      router.push(redirectPath);
+      const target =
+        callbackUrl ??
+        (typeof window !== "undefined" ? window.location.href : "/");
+      signIn("google", { callbackUrl: target });
       return false;
     },
-    [isAuthenticated, isLoading, router]
+    [isAuthenticated, isLoading]
   );
 
   return {
