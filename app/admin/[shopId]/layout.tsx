@@ -14,7 +14,7 @@ const ShopAdminLayout = async ({ children, params }: IProps) => {
   return (
     <>
       <AdminHeader shopName={shop.name} shopId={shop.id} shopImageUrl={shop.imageUrl} />
-      <div className="pb-24">{children}</div>
+      <div className="pb-24 lg:pb-12">{children}</div>
       <AdminBottomNav shopId={shop.id} />
     </>
   );

@@ -1,9 +1,12 @@
 import { ScissorsIcon } from "lucide-react";
+
+import Container from "@/app/_components/Container";
 import { listShopServices } from "@/app/admin/_actions/services";
-import PageHeading from "../_components/PageHeading";
+
 import EmptyState from "../_components/EmptyState";
-import ServicesList from "./_components/ServicesList";
+import PageHeading from "../_components/PageHeading";
 import ServiceFormSheet from "./_components/ServiceFormSheet";
+import ServicesList from "./_components/ServicesList";
 
 const ShopServicesPage = async ({ params }: { params: { shopId: string } }) => {
   const services = await listShopServices(params.shopId);
@@ -16,7 +19,7 @@ const ShopServicesPage = async ({ params }: { params: { shopId: string } }) => {
         action={<ServiceFormSheet shopId={params.shopId} mode="create" />}
       />
 
-      <section className="px-5">
+      <Container className="pb-8">
         {services.length === 0 ? (
           <EmptyState
             icon={ScissorsIcon}
@@ -27,7 +30,7 @@ const ShopServicesPage = async ({ params }: { params: { shopId: string } }) => {
         ) : (
           <ServicesList services={services} shopId={params.shopId} />
         )}
-      </section>
+      </Container>
     </main>
   );
 };

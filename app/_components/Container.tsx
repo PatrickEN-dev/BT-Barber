@@ -2,7 +2,7 @@ import { cn } from "@/app/_lib/utils";
 
 interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: "default" | "narrow" | "wide" | "full";
-  as?: "div" | "section" | "main" | "article";
+  as?: "div" | "section" | "main" | "article" | "header" | "footer" | "nav" | "aside";
 }
 
 const sizes = {

@@ -11,6 +11,7 @@ export interface NavItem {
   href: string;
   icon?: LucideIcon;
   exact?: boolean;
+  matchPaths?: string[];
 }
 
 interface DesktopTopNavProps {
@@ -21,8 +22,16 @@ interface DesktopTopNavProps {
   className?: string;
 }
 
-const isActive = (pathname: string, item: NavItem) =>
-  item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+const isActive = (pathname: string, item: NavItem) => {
+  if (item.matchPaths && item.matchPaths.length > 0) {
+    return item.matchPaths.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    );
+  }
+  return item.exact
+    ? pathname === item.href
+    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+};
 
 const DesktopTopNav = ({
   brand,

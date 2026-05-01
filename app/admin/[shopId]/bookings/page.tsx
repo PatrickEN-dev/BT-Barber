@@ -1,4 +1,5 @@
 import { CalendarClockIcon } from "lucide-react";
+import Container from "@/app/_components/Container";
 import { db } from "@/app/_lib/prisma";
 import { listShopBookings, type BookingStatus, type BookingRange } from "@/app/admin/_actions/bookings";
 import PageHeading from "../_components/PageHeading";
@@ -40,7 +41,7 @@ const ShopBookingsPage = async ({ params, searchParams }: IProps) => {
         description={`${data.total} ${data.total === 1 ? "agendamento" : "agendamentos"}`}
       />
 
-      <div className="px-5">
+      <Container className="space-y-4 pb-8">
         <BookingFilters
           shopId={params.shopId}
           status={status}
@@ -48,9 +49,7 @@ const ShopBookingsPage = async ({ params, searchParams }: IProps) => {
           range={range}
           barbers={barbers}
         />
-      </div>
 
-      <section className="px-5 mt-4">
         {data.bookings.length === 0 ? (
           <EmptyState
             icon={CalendarClockIcon}
@@ -60,16 +59,16 @@ const ShopBookingsPage = async ({ params, searchParams }: IProps) => {
         ) : (
           <BookingsList bookings={data.bookings} shopId={params.shopId} />
         )}
-      </section>
 
-      <Pagination
-        page={data.page}
-        totalPages={data.totalPages}
-        total={data.total}
-        perPage={data.perPage}
-        basePath={`/admin/${params.shopId}/bookings`}
-        searchParams={{ status, barberId, range: range === "any" ? undefined : range }}
-      />
+        <Pagination
+          page={data.page}
+          totalPages={data.totalPages}
+          total={data.total}
+          perPage={data.perPage}
+          basePath={`/admin/${params.shopId}/bookings`}
+          searchParams={{ status, barberId, range: range === "any" ? undefined : range }}
+        />
+      </Container>
     </main>
   );
 };

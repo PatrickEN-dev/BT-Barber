@@ -1,7 +1,10 @@
 import { ScissorsIcon } from "lucide-react";
+
+import Container from "@/app/_components/Container";
 import { listShopBarbers } from "@/app/admin/_actions/barbers";
-import PageHeading from "../_components/PageHeading";
+
 import EmptyState from "../_components/EmptyState";
+import PageHeading from "../_components/PageHeading";
 import BarbersList from "./_components/BarbersList";
 
 const ShopBarbersPage = async ({ params }: { params: { shopId: string } }) => {
@@ -14,7 +17,7 @@ const ShopBarbersPage = async ({ params }: { params: { shopId: string } }) => {
         description={`${barbers.length} ${barbers.length === 1 ? "barbeiro" : "barbeiros"}`}
       />
 
-      <section className="px-5">
+      <Container className="pb-8">
         {barbers.length === 0 ? (
           <EmptyState
             icon={ScissorsIcon}
@@ -24,7 +27,7 @@ const ShopBarbersPage = async ({ params }: { params: { shopId: string } }) => {
         ) : (
           <BarbersList barbers={barbers} />
         )}
-      </section>
+      </Container>
     </main>
   );
 };

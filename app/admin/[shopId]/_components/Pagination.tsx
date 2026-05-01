@@ -38,7 +38,7 @@ const Pagination = ({ page, totalPages, total, perPage, basePath, searchParams }
   const disabledNext = page >= totalPages;
 
   return (
-    <nav className="flex items-center justify-between gap-3 px-5 py-4 mt-2 border-t border-secondary/40">
+    <nav className="flex items-center justify-between gap-3 py-4 mt-2 border-t border-border/60">
       <p className="text-[11px] text-gray-500 tabular-nums">
         <span className="text-foreground font-medium">
           {start}–{end}

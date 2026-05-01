@@ -1,3 +1,4 @@
+import Container from "@/app/_components/Container";
 import { db } from "@/app/_lib/prisma";
 import { requireShopAccess } from "@/app/admin/_utils/requireOwner";
 import PageHeading from "../_components/PageHeading";
@@ -21,7 +22,7 @@ const ShopSettingsPage = async ({ params }: { params: { shopId: string } }) => {
   return (
     <main>
       <PageHeading title="Configurações" description="Ajuste os dados públicos da barbearia." />
-      <section className="px-5 pb-8">
+      <Container as="section" size="narrow" className="pb-8">
         <SettingsForm
           shopId={shop.id}
           initial={{
@@ -32,7 +33,7 @@ const ShopSettingsPage = async ({ params }: { params: { shopId: string } }) => {
             hasShop: shop.hasShop,
           }}
         />
-      </section>
+      </Container>
     </main>
   );
 };

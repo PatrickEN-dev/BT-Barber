@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
 
+import Container from "@/app/_components/Container";
+
 interface IProps {
   title: string;
   description?: string;
@@ -8,20 +10,24 @@ interface IProps {
 }
 
 const PageHeading = ({ title, description, eyebrow, action }: IProps) => (
-  <header className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
+  <Container as="header" className="flex items-start justify-between gap-3 pb-4 pt-5 lg:pb-6 lg:pt-8">
     <div className="min-w-0">
       {eyebrow && (
-        <p className="text-[10px] uppercase tracking-[0.1em] text-gray-500 font-semibold mb-1">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground lg:text-xs lg:tracking-[0.18em] lg:text-accent">
           {eyebrow}
         </p>
       )}
-      <h1 className="text-lg font-bold leading-tight tracking-tight">{title}</h1>
+      <h1 className="text-lg font-bold leading-tight tracking-tight lg:text-2xl xl:text-3xl">
+        {title}
+      </h1>
       {description && (
-        <p className="text-xs text-gray-400 mt-1 tabular-nums">{description}</p>
+        <p className="mt-1 text-xs text-muted-foreground tabular-nums lg:text-sm">
+          {description}
+        </p>
       )}
     </div>
     {action && <div className="shrink-0">{action}</div>}
-  </header>
+  </Container>
 );
 
 export default PageHeading;

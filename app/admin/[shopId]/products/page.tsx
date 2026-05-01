@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import Container from "@/app/_components/Container";
 import { Button } from "@/app/_components/ui/button";
 import { findShopProducts } from "@/app/_actions/product";
 import { requireShopAccess } from "@/app/admin/_utils/requireOwner";
@@ -23,7 +24,7 @@ const AdminProductsPage = async ({ params }: IProps) => {
           title="Produtos"
           description="A lojinha está desativada"
         />
-        <div className="px-5 pb-8">
+        <Container className="space-y-6 pb-8">
           <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
             <p className="mb-4 text-sm text-muted-foreground">
               Você desativou a lojinha em &ldquo;Configurações&rdquo;. Os clientes não veem a
@@ -36,10 +37,8 @@ const AdminProductsPage = async ({ params }: IProps) => {
               </Link>
             </Button>
           </div>
-          <div className="mt-6">
-            <AdminProductsList shopId={params.shopId} products={products} />
-          </div>
-        </div>
+          <AdminProductsList shopId={params.shopId} products={products} />
+        </Container>
       </>
     );
   }
@@ -54,9 +53,9 @@ const AdminProductsPage = async ({ params }: IProps) => {
         description={`${products.length} cadastrado${products.length === 1 ? "" : "s"} · ${activeCount} ativo${activeCount === 1 ? "" : "s"}`}
       />
 
-      <div className="px-5 pb-8">
+      <Container className="pb-8">
         <AdminProductsList shopId={params.shopId} products={products} />
-      </div>
+      </Container>
     </>
   );
 };

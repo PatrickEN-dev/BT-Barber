@@ -1,6 +1,7 @@
 import { PackageIcon } from "lucide-react";
 import Link from "next/link";
 
+import Container from "@/app/_components/Container";
 import { Button } from "@/app/_components/ui/button";
 import { findShopOrders } from "@/app/_actions/order";
 import { requireShopAccess } from "@/app/admin/_utils/requireOwner";
@@ -36,22 +37,22 @@ const AdminOrdersPage = async ({ params }: IProps) => {
         }
       />
 
-      {!shop.hasShop && (
-        <div className="mx-5 mb-4 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
-          A lojinha está desativada. Os clientes não conseguem fazer novos pedidos. Reative em{" "}
-          <Link
-            href={`/admin/${params.shopId}/settings`}
-            className="font-semibold underline underline-offset-2"
-          >
-            Configurações
-          </Link>
-          .
-        </div>
-      )}
+      <Container className="space-y-4 pb-8">
+        {!shop.hasShop && (
+          <div className="rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
+            A lojinha está desativada. Os clientes não conseguem fazer novos pedidos. Reative em{" "}
+            <Link
+              href={`/admin/${params.shopId}/settings`}
+              className="font-semibold underline underline-offset-2"
+            >
+              Configurações
+            </Link>
+            .
+          </div>
+        )}
 
-      <div className="px-5 pb-8">
         <AdminOrdersList orders={orders} />
-      </div>
+      </Container>
     </>
   );
 };
