@@ -46,7 +46,7 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
     handleHourClick,
     handleDateClick,
     user,
-    checkAuthAndRedirect,
+    ensureAuth,
   } = useBookingMenu();
 
   useEffect(() => {
@@ -90,7 +90,7 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   };
 
   const handleBookingSubmit = async () => {
-    if (!checkAuthAndRedirect()) return;
+    if (!ensureAuth()) return;
 
     setIsLoading(true);
     try {

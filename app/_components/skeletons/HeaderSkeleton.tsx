@@ -1,14 +1,17 @@
-import { Card, CardContent } from "@/app/_components/ui/card";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 
 const HeaderSkeleton = () => (
-  <header>
-    <Card>
-      <CardContent className="p-5 justify-between items-center flex flex-row">
-        <Skeleton className="h-[18px] w-[120px]" />
-        <Skeleton className="h-10 w-10" />
-      </CardContent>
-    </Card>
+  <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
+    <div className="flex items-center justify-between px-5 py-4">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-9 w-9 rounded-xl" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-11 w-11 rounded-xl" />
+        <Skeleton className="h-11 w-11 rounded-xl" />
+      </div>
+    </div>
   </header>
 );
 

@@ -63,7 +63,7 @@ const useBarbershopServices = () => {
   const { selectedBarber, setSelectedBarber, clearSelectedBarber } = useSelectedBarberStore();
   const { hour, setHour } = useHourStore();
   const { date, setDate } = useDateStore();
-  const { isAuthenticated, redirectToLogin } = useAuthGuard({ requireAuth: false });
+  const { ensureAuth } = useAuthGuard();
 
   const isServiceSelected = (serviceId: string) =>
     selectedServices.some((s) => s.id === serviceId);
@@ -74,10 +74,7 @@ const useBarbershopServices = () => {
   };
 
   const openSheetAndVerifyUser = () => {
-    if (!isAuthenticated) {
-      redirectToLogin();
-      return;
-    }
+    if (!ensureAuth()) return;
     setSheetIsOpen(true);
   };
 

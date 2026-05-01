@@ -38,27 +38,27 @@ const ServiceCardDetails = ({ date, hour, barbershop }: IServiceCardDetails) => 
 
           {date && (
             <section className="flex justify-between mt-4">
-              <h3 className="text-gray-400 text-sm">Data</h3>
-              <time className="text-gray-400 text-sm capitalize">{formattedDate}</time>
+              <h3 className="text-muted-foreground text-sm">Data</h3>
+              <time className="text-muted-foreground text-sm capitalize">{formattedDate}</time>
             </section>
           )}
 
           {hour && (
             <section className="flex justify-between mt-4">
-              <h3 className="text-gray-400 text-sm">Hora</h3>
-              <time className="text-gray-400 text-sm capitalize">{hour}</time>
+              <h3 className="text-muted-foreground text-sm">Hora</h3>
+              <time className="text-muted-foreground text-sm capitalize">{hour}</time>
             </section>
           )}
 
           <section className="flex justify-between mt-4">
-            <h3 className="text-gray-400 text-sm">Barbearia</h3>
-            <h4 className="text-gray-400 text-sm capitalize">{barbershop.name}</h4>
+            <h3 className="text-muted-foreground text-sm">Barbearia</h3>
+            <h4 className="text-muted-foreground text-sm capitalize">{barbershop.name}</h4>
           </section>
 
           {selectedBarber && (
             <section className="flex justify-between mt-4">
-              <h3 className="text-gray-400 text-sm">Barbeiro</h3>
-              <h4 className="text-gray-400 text-sm">{selectedBarber.name}</h4>
+              <h3 className="text-muted-foreground text-sm">Barbeiro</h3>
+              <h4 className="text-muted-foreground text-sm">{selectedBarber.name}</h4>
             </section>
           )}
         </section>

@@ -30,7 +30,7 @@ const BarberProfilePage = async ({ params }: IBarberProfilePageProps) => {
       <div className="px-5 py-4 flex items-center gap-2">
         <Link
           href={`/barbershop/${params.id}`}
-          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-primary"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
         >
           <ChevronLeft size={16} />
           Voltar
@@ -53,10 +53,10 @@ const BarberProfilePage = async ({ params }: IBarberProfilePageProps) => {
         </div>
 
         <h1 className="mt-4 text-xl font-bold">{barber.name}</h1>
-        <p className="text-xs text-gray-400">{barber.barbershop.name}</p>
+        <p className="text-xs text-muted-foreground">{barber.barbershop.name}</p>
 
         {typeof barber.rating === "number" && barber.rating > 0 && (
-          <span className="mt-2 inline-flex items-center gap-1 text-sm text-gray-400">
+          <span className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground">
             <StarIcon size={14} className="text-primary" />
             {barber.rating.toFixed(1)}
           </span>
@@ -68,10 +68,10 @@ const BarberProfilePage = async ({ params }: IBarberProfilePageProps) => {
       </section>
 
       <section className="px-5 mt-8">
-        <h2 className="text-xs uppercase text-gray-400 font-bold mb-3">O que ele faz</h2>
+        <h2 className="text-xs uppercase text-muted-foreground font-bold mb-3">O que ele faz</h2>
 
         {barber.services.length === 0 ? (
-          <p className="text-sm text-gray-400">Sem serviços cadastrados.</p>
+          <p className="text-sm text-muted-foreground">Sem serviços cadastrados.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {barber.services.map((service) => (

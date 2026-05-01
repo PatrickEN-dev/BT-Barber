@@ -24,7 +24,7 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
 
   if (barbers.length === 0) {
     return (
-      <div className="px-5 py-10 text-center text-gray-400">
+      <div className="px-5 py-10 text-center text-muted-foreground">
         Esta barbearia ainda não tem barbeiros cadastrados.
       </div>
     );
@@ -32,7 +32,7 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
 
   return (
     <section className="px-5 py-6">
-      <h2 className="text-xs uppercase text-gray-400 font-bold mb-3">Escolha um barbeiro</h2>
+      <h2 className="text-xs uppercase text-muted-foreground font-bold mb-3">Escolha um barbeiro</h2>
 
       <div className="flex flex-col gap-3">
         <Card
@@ -53,7 +53,7 @@ const BarberSelectStep = ({ shopId, barbers }: IBarberSelectStepProps) => {
             </div>
             <div className="flex flex-col">
               <h3 className="font-bold">Qualquer barbeiro</h3>
-              <span className="text-xs text-gray-400">Escolhemos um disponível para você</span>
+              <span className="text-xs text-muted-foreground">Escolhemos um disponível para você</span>
             </div>
           </CardContent>
         </Card>

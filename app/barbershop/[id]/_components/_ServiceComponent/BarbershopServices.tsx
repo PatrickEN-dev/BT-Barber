@@ -56,7 +56,7 @@ const BarbershopServices = ({ barbershopData }: IBarbershopServicesProps) => {
         <button
           type="button"
           onClick={handleBackToBarbers}
-          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-primary transition-colors"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ChevronLeft size={16} />
           Trocar barbeiro
@@ -68,7 +68,7 @@ const BarbershopServices = ({ barbershopData }: IBarbershopServicesProps) => {
 
       <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-secondary px-5 py-4 flex items-center justify-between gap-3">
         <div className="flex flex-col">
-          <span className="text-xs text-gray-400 uppercase">
+          <span className="text-xs text-muted-foreground uppercase">
             {hasSelection
               ? `${selectedServices.length} ${
                   selectedServices.length === 1 ? "serviço" : "serviços"

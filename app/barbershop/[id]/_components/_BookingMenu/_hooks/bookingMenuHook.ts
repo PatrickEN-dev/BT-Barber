@@ -20,7 +20,7 @@ export const dayBookingsStore = create<IDayBookingsStore>((set) => ({
 }));
 
 const useBookingMenu = () => {
-  const { user, isAuthenticated, checkAuthAndRedirect } = useAuthGuard({ requireAuth: false });
+  const { user, isAuthenticated, ensureAuth } = useAuthGuard();
   const { isLoading } = useLoading();
   const { hour, setHour, date, setDate, selectedServices, selectedBarber } =
     useBarbershopServices();
@@ -72,7 +72,7 @@ const useBookingMenu = () => {
     formatBookingDate,
     user,
     isAuthenticated,
-    checkAuthAndRedirect,
+    ensureAuth,
   };
 };
 

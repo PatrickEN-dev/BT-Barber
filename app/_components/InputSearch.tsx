@@ -31,36 +31,35 @@ const InputSearch = ({ defaultValues, placeholderInput }: SearchProps) => {
   });
 
   const handleSubmit = (data: z.infer<typeof formSchema>) => {
-    push(`/barbershop?search=${data.search}`);
+    const query = data.search.trim();
+    if (!query) return;
+    push(`/barbershop?search=${encodeURIComponent(query)}`);
   };
 
   return (
-    <div className="flex items-center">
-      <Form {...form}>
-        <form className="flex w-full item-center" onSubmit={form.handleSubmit(handleSubmit)}>
-          <FormField
-            control={form.control}
-            name="search"
-            render={({ field }: any) => (
-              <FormItem className="w-full">
-                <FormControl>
-                  <Input
-                    placeholder={String(placeholderInput)}
-                    {...field}
-                    className="border-r-none"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+    <Form {...form}>
+      <form
+        className="flex w-full items-start gap-2"
+        onSubmit={form.handleSubmit(handleSubmit)}
+      >
+        <FormField
+          control={form.control}
+          name="search"
+          render={({ field }: any) => (
+            <FormItem className="w-full">
+              <FormControl>
+                <Input placeholder={String(placeholderInput)} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <Button variant="default" type="submit">
-            <SearchIcon size={20} />
-          </Button>
-        </form>
-      </Form>
-    </div>
+        <Button variant="accent" size="icon" type="submit" aria-label="Pesquisar">
+          <SearchIcon size={18} />
+        </Button>
+      </form>
+    </Form>
   );
 };
 

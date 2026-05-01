@@ -5,6 +5,7 @@ import { Adapter } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
 
 export const authOptions: AuthOptions = {
+  debug: process.env.NODE_ENV === "development",
   adapter: PrismaAdapter(db) as Adapter,
   providers: [
     GoogleProvider({
@@ -16,12 +17,13 @@ export const authOptions: AuthOptions = {
     async session({ session, user }) {
       const dbUser = await db.user.findUnique({
         where: { id: user.id },
-        select: { role: true },
+        select: { role: true, theme: true },
       });
       session.user = {
         ...session.user,
         id: user.id,
         role: dbUser?.role ?? "CUSTOMER",
+        theme: dbUser?.theme ?? "SYSTEM",
       };
       return session;
     },

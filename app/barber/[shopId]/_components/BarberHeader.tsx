@@ -12,6 +12,7 @@ import { CalendarOffIcon, LogOutIcon, MenuIcon, ScissorsIcon, UserIcon } from "l
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import ThemeToggle from "@/app/_components/ThemeToggle";
 
 interface IProps {
   shopId: string;
@@ -49,12 +50,14 @@ const BarberHeader = ({ shopId, shopName, barberName, barberImageUrl }: IProps) 
           </div>
         </div>
 
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
-              <MenuIcon size={16} />
-            </Button>
-          </SheetTrigger>
+        <div className="flex items-center gap-2 shrink-0">
+          <ThemeToggle className="h-9 w-9" />
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <MenuIcon size={16} />
+              </Button>
+            </SheetTrigger>
           <SheetContent className="p-0 flex flex-col">
             <SheetHeader className="text-left border-b border-secondary p-5">
               <SheetTitle>Menu</SheetTitle>
@@ -95,6 +98,7 @@ const BarberHeader = ({ shopId, shopName, barberName, barberImageUrl }: IProps) 
                   Bloqueios
                 </Link>
               </Button>
+              <ThemeToggle variant="full" />
             </section>
 
             <section className="mt-auto px-5 py-4 border-t border-secondary">
@@ -108,7 +112,8 @@ const BarberHeader = ({ shopId, shopName, barberName, barberImageUrl }: IProps) 
               </Button>
             </section>
           </SheetContent>
-        </Sheet>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

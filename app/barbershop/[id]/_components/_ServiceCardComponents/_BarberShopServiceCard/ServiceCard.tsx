@@ -31,12 +31,12 @@ const BarberShopServiceCard = ({ service }: IServiceCardProps) => {
 
           <div className="flex flex-col w-full">
             <h2 className="font-bold">{service.name}</h2>
-            <p className="text-sm text-gray-400">{service.description}</p>
+            <p className="text-sm text-muted-foreground">{service.description}</p>
 
             <section className="flex items-center justify-between mt-3">
               <p className="text-primary text-sm font-bold">{formatPrice(String(service.price))}</p>
 
-              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-400">
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
                 <Checkbox
                   id={`service-${service.id}`}
                   checked={checked}

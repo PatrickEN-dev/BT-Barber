@@ -1,74 +1,53 @@
-"use client";
-
 import { Badge } from "@/app/_components/ui/badge";
-import { Button } from "@/app/_components/ui/button";
-import { Card, CardContent } from "@/app/_components/ui/card";
+import { buttonVariants } from "@/app/_components/ui/button";
 import { Barbershop } from "@prisma/client";
-import { StarIcon } from "lucide-react";
+import { MapPinIcon, StarIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useAuthGuard } from "@/app/_hooks/useAuthGuard";
 
 interface IBarberShopCardProps {
   barberShop: Barbershop;
 }
 
 const BarberShopCard = ({ barberShop }: IBarberShopCardProps) => {
-  const { push } = useRouter();
-  const { isAuthenticated, redirectToLogin } = useAuthGuard({ requireAuth: false });
-
-  const handleBookingClick = () => {
-    if (!isAuthenticated) {
-      redirectToLogin();
-      return;
-    }
-    push(`/barbershop/${barberShop.id}`);
-  };
-
   return (
-    <Link href={`/barbershop/${barberShop.id}`}>
-      <Card className="min-w-[167px] max-w-[167px] rounded-2xl pb-3">
-        <CardContent className="px-1 py-0">
-          <div className="relative w-full h-[159px]">
-            <div className="absolute top-2 left-2 z-50">
-              <Badge
-                className=" flex item-center gap-2 opacity-90 bg-indigo-950"
-                variant={"secondary"}
-              >
-                <StarIcon size={12} className="fill-primary text-primary" />
-                <span className="text-xs">5.0</span>
-              </Badge>
-            </div>
-            <Image
-              src={barberShop.imageUrl}
-              alt={barberShop.name}
-              width={0}
-              fill
-              height={0}
-              sizes="100vw"
-              className="h-[159px] w-full rounded-2xl object-cover"
-            />
+    <Link href={`/barbershop/${barberShop.id}`} className="group block h-full w-full">
+      <article className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card shadow-inset-highlight transition-all duration-500 ease-smooth hover:-translate-y-1.5 hover:border-accent/50 hover:shadow-card-hover">
+        <div className="relative aspect-[3/4] w-full overflow-hidden">
+          <Image
+            src={barberShop.imageUrl}
+            alt={barberShop.name}
+            fill
+            sizes="(max-width: 768px) 50vw, 33vw"
+            className="object-cover transition-transform duration-700 ease-smooth group-hover:scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent transition-opacity duration-500 group-hover:from-black/75" />
+
+          <div className="absolute left-3 top-3 transition-transform duration-300 ease-smooth group-hover:scale-105">
+            <Badge variant="glass" className="gap-1.5">
+              <StarIcon size={12} className="fill-yellow-400 text-yellow-400" />
+              <span className="text-[11px] font-bold">5.0</span>
+            </Badge>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          <div className="flex flex-col gap-1.5">
+            <h3 className="truncate text-base font-bold tracking-tight">{barberShop.name}</h3>
+            <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+              <MapPinIcon size={12} className="shrink-0" />
+              <span className="truncate">{barberShop.address}</span>
+            </p>
           </div>
 
-          <div className="pb-0 px-2">
-            <h2 className="font-bold mt-2 overflow-hidden text-ellipsis text-nowrap">
-              {barberShop.name}
-            </h2>
-            <p className="text-sm text-gray-400 overflow-hidden text-ellipsis text-nowrap">
-              {barberShop.address}
-            </p>
-            <Button
-              type="button"
-              variant={"secondary"}
-              onClick={handleBookingClick}
-              className="w-full mt-3"
-            >
-              Reservar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <span
+            aria-hidden
+            className={`${buttonVariants({ variant: "accent", size: "sm" })} mt-auto w-full`}
+          >
+            Reservar
+          </span>
+        </div>
+      </article>
     </Link>
   );
 };

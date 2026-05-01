@@ -45,12 +45,12 @@ const BarberCard = ({ barber, shopId, onSelect }: IBarberCardProps) => {
         <div className="flex flex-col min-w-0 flex-1">
           <h3 className="font-bold truncate">{barber.name}</h3>
           {typeof barber.rating === "number" && barber.rating > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <StarIcon size={12} className="text-primary" />
               {barber.rating.toFixed(1)}
             </span>
           )}
-          <span className="text-xs text-gray-400 mt-0.5">
+          <span className="text-xs text-muted-foreground mt-0.5">
             {barber.services.length} {barber.services.length === 1 ? "serviço" : "serviços"}
           </span>
         </div>

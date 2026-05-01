@@ -38,25 +38,25 @@ const BookingDetails = ({ booking }: BookingInfoProps) => {
         {date && (
           <section>
             <div className="flex justify-between">
-              <h3 className="text-gray-400 text-sm">Data</h3>
+              <h3 className="text-muted-foreground text-sm">Data</h3>
               <h4 className="text-sm">{format(date, "dd 'de' MMMM", { locale: ptBR })}</h4>
             </div>
 
             <div className="flex justify-between">
-              <h3 className="text-gray-400 text-sm">Horário</h3>
+              <h3 className="text-muted-foreground text-sm">Horário</h3>
               <h4 className="text-sm">{format(date, "HH:mm")}</h4>
             </div>
           </section>
         )}
 
         <section className="flex justify-between">
-          <h3 className="text-gray-400 text-sm">Barbearia</h3>
+          <h3 className="text-muted-foreground text-sm">Barbearia</h3>
           <h4 className="text-sm">{booking.barbershop.name}</h4>
         </section>
 
         {barber && (
           <section className="flex justify-between">
-            <h3 className="text-gray-400 text-sm">Barbeiro</h3>
+            <h3 className="text-muted-foreground text-sm">Barbeiro</h3>
             <h4 className="text-sm">{barber.name}</h4>
           </section>
         )}

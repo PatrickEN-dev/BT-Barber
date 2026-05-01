@@ -42,12 +42,12 @@ const ProfilePage = async () => {
           <AvatarFallback>{initials || "U"}</AvatarFallback>
         </Avatar>
         <h1 className="mt-4 text-xl font-bold">{user.name ?? "Sem nome"}</h1>
-        <p className="text-sm text-gray-400">{user.email}</p>
+        <p className="text-sm text-muted-foreground">{user.email}</p>
       </section>
 
       <section className="px-5 mt-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs uppercase text-gray-400 font-bold">Próximos agendamentos</h2>
+          <h2 className="text-xs uppercase text-muted-foreground font-bold">Próximos agendamentos</h2>
           {confirmedBookings.length > PREVIEW_COUNT && (
             <Link
               href="/bookings"
@@ -61,7 +61,7 @@ const ProfilePage = async () => {
 
         {upcomingPreview.length === 0 ? (
           <Card>
-            <CardContent className="p-4 text-center text-sm text-gray-400">
+            <CardContent className="p-4 text-center text-sm text-muted-foreground">
               Você ainda não tem agendamentos.{" "}
               <Link href="/" className="text-primary hover:underline">
                 Reservar agora
@@ -82,7 +82,7 @@ const ProfilePage = async () => {
       {historyPreview.length > 0 && (
         <section className="px-5 mt-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs uppercase text-gray-400 font-bold">Histórico</h2>
+            <h2 className="text-xs uppercase text-muted-foreground font-bold">Histórico</h2>
             {finishedBookings.length > PREVIEW_COUNT && (
               <Link
                 href="/bookings"
@@ -104,10 +104,10 @@ const ProfilePage = async () => {
       )}
 
       <section className="px-5 mt-10">
-        <h2 className="text-xs uppercase text-gray-400 font-bold mb-3">Conta</h2>
+        <h2 className="text-xs uppercase text-muted-foreground font-bold mb-3">Conta</h2>
         <Card>
           <CardContent className="p-4 flex flex-col gap-1">
-            <span className="text-xs text-gray-400">E-mail</span>
+            <span className="text-xs text-muted-foreground">E-mail</span>
             <span className="text-sm">{user.email ?? "—"}</span>
           </CardContent>
         </Card>

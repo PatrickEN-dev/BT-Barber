@@ -10,7 +10,7 @@ interface IBarbershopServiceCardListProps {
 const BarbershopServiceCardList = ({ services }: IBarbershopServiceCardListProps) => {
   if (services.length === 0) {
     return (
-      <div className="px-5 py-10 text-center text-gray-400 text-sm">
+      <div className="px-5 py-10 text-center text-muted-foreground text-sm">
         Este barbeiro ainda não tem serviços cadastrados.
       </div>
     );

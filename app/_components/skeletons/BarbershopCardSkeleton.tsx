@@ -1,17 +1,14 @@
-import { Card, CardContent } from "@/app/_components/ui/card";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 
 const BarbershopCardSkeleton = () => (
-  <Card className="min-w-[167px] max-w-[167px] rounded-2xl pb-3">
-    <CardContent className="px-1 py-0">
-      <Skeleton className="h-[159px] w-full rounded-2xl" />
-      <div className="px-2 pt-2 flex flex-col gap-2">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
-        <Skeleton className="h-9 w-full mt-2" />
-      </div>
-    </CardContent>
-  </Card>
+  <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+    <Skeleton className="aspect-[4/3] w-full rounded-none" />
+    <div className="flex flex-1 flex-col gap-3 p-4">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
+      <Skeleton className="mt-auto h-9 w-full" />
+    </div>
+  </div>
 );
 
 export default BarbershopCardSkeleton;

@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/app/_components/ui/avatar";
+import ThemeToggle from "@/app/_components/ThemeToggle";
 
 interface IProps {
   shopName: string;
@@ -45,12 +46,14 @@ const AdminHeader = ({ shopName, shopId, shopImageUrl }: IProps) => {
           </div>
         </div>
 
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
-              <MenuIcon size={16} />
-            </Button>
-          </SheetTrigger>
+        <div className="flex items-center gap-2 shrink-0">
+          <ThemeToggle className="h-9 w-9" />
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <MenuIcon size={16} />
+              </Button>
+            </SheetTrigger>
           <SheetContent className="p-0 flex flex-col">
             <SheetHeader className="text-left border-b border-secondary p-5">
               <SheetTitle>Menu</SheetTitle>
@@ -79,6 +82,7 @@ const AdminHeader = ({ shopName, shopId, shopImageUrl }: IProps) => {
               <Button variant="outline" className="justify-start" asChild>
                 <Link href={`/admin/${shopId}/settings`}>Configurações</Link>
               </Button>
+              <ThemeToggle variant="full" />
             </section>
 
             <section className="mt-auto px-5 py-4 border-t border-secondary">
@@ -92,7 +96,8 @@ const AdminHeader = ({ shopName, shopId, shopImageUrl }: IProps) => {
               </Button>
             </section>
           </SheetContent>
-        </Sheet>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

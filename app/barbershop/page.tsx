@@ -35,11 +35,11 @@ const BarbershopsPage = async ({ searchParams }: IBarbershopsPageProps) => {
           </section>
         ) : (
           <>
-            <h1 className="text-gray-400 font-bold text-xs uppercase">
+            <h1 className="text-muted-foreground font-bold text-xs uppercase">
               Resultados para &quot;{searchParams.search}&quot;
             </h1>
 
-            <ul className="grid grid-cols-2 gap-4">
+            <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
               {barbershops.map((barbershop) => (
                 <li key={barbershop.id} className="w-full">
                   <BarberShopCard barberShop={barbershop} />
