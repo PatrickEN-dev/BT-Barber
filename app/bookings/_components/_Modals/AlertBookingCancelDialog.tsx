@@ -21,9 +21,16 @@ const AlertBookingCancelDialog = ({
   return (
     <AlertDialogContent className="w-[90%]">
       <AlertDialogHeader>
-        <AlertDialogTitle>Deseja mesmo cancelar essa reserva?</AlertDialogTitle>
-        <AlertDialogDescription>
-          Uma vez cancelada, não será possível reverter essa ação.
+        <AlertDialogTitle>Cancelar reserva?</AlertDialogTitle>
+        <AlertDialogDescription className="space-y-2">
+          <span className="block">Política de estorno (paga online):</span>
+          <span className="block rounded-lg bg-muted/40 p-3 text-xs">
+            <strong>24h+ antes:</strong> reembolso de 100%
+            <br />
+            <strong>2-24h antes:</strong> reembolso de 50% (multa de 50%)
+            <br />
+            <strong>menos de 2h:</strong> sem reembolso
+          </span>
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter className="flex-row gap-3">

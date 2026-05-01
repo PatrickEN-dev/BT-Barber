@@ -231,7 +231,8 @@ const CartSheet = ({ shopId, shopName, trigger }: ICartSheetProps) => {
           onOpenChange={(next) => {
             if (!next) setCheckoutOrder(null);
           }}
-          orderId={checkoutOrder.id}
+          kind="order"
+          targetId={checkoutOrder.id}
           totalBRL={checkoutOrder.total}
           onPaid={handlePaid}
         />

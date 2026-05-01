@@ -5,6 +5,7 @@ import { format, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatPrice } from "@/app/_utils/formatPrices";
 import CancelBookingButton from "./CancelBookingButton";
+import NoShowButton from "./NoShowButton";
 import type { listShopBookings } from "@/app/admin/_actions/bookings";
 
 type Bookings = Awaited<ReturnType<typeof listShopBookings>>["bookings"];
@@ -66,6 +67,9 @@ const BookingsList = ({ bookings, shopId }: IProps) => (
 
               {!finished && (
                 <CancelBookingButton shopId={shopId} bookingId={b.id} clientName={b.user.name ?? ""} />
+              )}
+              {finished && (
+                <NoShowButton bookingId={b.id} clientName={b.user.name ?? ""} />
               )}
             </CardContent>
           </Card>

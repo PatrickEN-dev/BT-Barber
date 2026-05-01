@@ -6,7 +6,7 @@ import { CreditCardIcon, QrCodeIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { createOrderCheckout } from "@/app/_actions/payment";
+import { createBookingCheckout, createOrderCheckout } from "@/app/_actions/payment";
 import {
   Dialog,
   DialogContent,
@@ -24,9 +24,13 @@ import StripeCardForm from "./StripeCardForm";
 interface CheckoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  orderId: string;
+  /** Whether the target is an Order (lojinha) or a Booking (serviço). */
+  kind: "order" | "booking";
+  targetId: string;
   totalBRL: string;
   onPaid: () => void;
+  /** URL the user lands on after Stripe redirects back from card flow. */
+  returnPath?: string;
 }
 
 // Stripe.js loader is global. loadStripe is idempotent — calling repeatedly
@@ -44,7 +48,15 @@ const getStripe = () => {
   return stripePromise;
 };
 
-const CheckoutDialog = ({ open, onOpenChange, orderId, totalBRL, onPaid }: CheckoutDialogProps) => {
+const CheckoutDialog = ({
+  open,
+  onOpenChange,
+  kind,
+  targetId,
+  totalBRL,
+  onPaid,
+  returnPath,
+}: CheckoutDialogProps) => {
   const [activeTab, setActiveTab] = useState<"pix" | "card">("pix");
   const [pixPayment, setPixPayment] = useState<SerializedPayment | null>(null);
   const [cardClientSecret, setCardClientSecret] = useState<string | null>(null);
@@ -57,12 +69,20 @@ const CheckoutDialog = ({ open, onOpenChange, orderId, totalBRL, onPaid }: Check
   const amountLabel = formatPrice(totalBRL);
   const stripeInstance = useMemo(() => getStripe(), []);
 
-  // Generate the PIX intent on first switch to PIX tab (default tab).
+  // Single function dispatching to the right server action by kind.
+  const initiate = useMemo(
+    () =>
+      kind === "order"
+        ? (method: "PIX" | "CARD") => createOrderCheckout({ orderId: targetId, method })
+        : (method: "PIX" | "CARD") => createBookingCheckout({ bookingId: targetId, method }),
+    [kind, targetId]
+  );
+
   useEffect(() => {
     if (!open) return;
     if (activeTab === "pix" && !initialized.pix) {
       setLoading(true);
-      createOrderCheckout({ orderId, method: "PIX" })
+      initiate("PIX")
         .then((result) => {
           setPixPayment(result.payment);
           setInitialized((s) => ({ ...s, pix: true }));
@@ -75,7 +95,7 @@ const CheckoutDialog = ({ open, onOpenChange, orderId, totalBRL, onPaid }: Check
     }
     if (activeTab === "card" && !initialized.card) {
       setLoading(true);
-      createOrderCheckout({ orderId, method: "CARD" })
+      initiate("CARD")
         .then((result) => {
           if (!result.clientSecret) throw new Error("Stripe não retornou clientSecret");
           setCardClientSecret(result.clientSecret);
@@ -87,17 +107,18 @@ const CheckoutDialog = ({ open, onOpenChange, orderId, totalBRL, onPaid }: Check
         })
         .finally(() => setLoading(false));
     }
-  }, [activeTab, open, orderId, initialized, onOpenChange]);
+  }, [activeTab, open, initialized, onOpenChange, initiate]);
 
   const handleClose = (next: boolean) => {
     if (!next) {
-      // Reset for next open. If the user paid, parent will close via onPaid.
       setPixPayment(null);
       setCardClientSecret(null);
       setInitialized({ pix: false, card: false });
     }
     onOpenChange(next);
   };
+
+  const defaultReturn = kind === "order" ? "/orders" : "/bookings";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -164,7 +185,9 @@ const CheckoutDialog = ({ open, onOpenChange, orderId, totalBRL, onPaid }: Check
                 }}
               >
                 <StripeCardForm
-                  returnUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/orders`}
+                  returnUrl={`${
+                    typeof window !== "undefined" ? window.location.origin : ""
+                  }${returnPath ?? defaultReturn}`}
                   amountLabel={amountLabel}
                 />
               </Elements>

@@ -1,8 +1,9 @@
 "use client";
 
 import CalendarComponent from "@/app/_components/CalendarComponent";
+import CheckoutDialog from "@/app/_components/checkout/CheckoutDialog";
 import { SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/app/_components/ui/sheet";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import TimeListComponent from "./TimeListComponent";
 import { Barbershop } from "@prisma/client";
 import { Button } from "@/app/_components/ui/button";
@@ -26,6 +27,11 @@ interface IBookingMenuProps {
 const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
   const { push } = useRouter();
   const { isLoading, setIsLoading } = useLoading();
+  const [checkoutBooking, setCheckoutBooking] = useState<{
+    bookingId: string;
+    total: string;
+    when: Date;
+  } | null>(null);
 
   const {
     setSheetIsOpen,
@@ -60,10 +66,10 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
     refreshAvailableHours();
   }, [date, barbershop.id, selectedBarber, setDayBookings]);
 
-  const saveBookingAndNotify = async (newDateFormatted: Date) => {
+  const saveBookingAndCheckout = async (newDateFormatted: Date) => {
     if (!selectedBarber) return;
 
-    await saveBooking({
+    const result = await saveBooking({
       barbershopId: barbershop.id,
       barberId: selectedBarber.id,
       userId: user!.id,
@@ -76,16 +82,20 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
     setDate(undefined);
     clearSelectedServices();
 
-    toast("Reserva realizada com sucesso!", {
-      description: `Com ${selectedBarber.name}, ${format(
-        newDateFormatted,
-        "dd 'de' MMMM 'às' HH':'mm",
-        { locale: ptBR }
-      )}.`,
-      action: {
-        label: "Visualizar",
-        onClick: () => push("/bookings"),
-      },
+    setCheckoutBooking({
+      bookingId: result.bookingId,
+      total: result.total,
+      when: newDateFormatted,
+    });
+  };
+
+  const handlePaid = () => {
+    if (!checkoutBooking) return;
+    const when = format(checkoutBooking.when, "dd 'de' MMMM 'às' HH':'mm", { locale: ptBR });
+    setCheckoutBooking(null);
+    toast.success("Reserva confirmada!", {
+      description: `${selectedBarber?.name ?? "Seu barbeiro"}, ${when}.`,
+      action: { label: "Visualizar", onClick: () => push("/bookings") },
     });
   };
 
@@ -98,7 +108,7 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
 
       const newDateFormatted = formatBookingDate(date!, hour!);
 
-      await saveBookingAndNotify(newDateFormatted);
+      await saveBookingAndCheckout(newDateFormatted);
     } catch (error) {
       if (error instanceof Error && error.name === BookingSlotTakenError.name) {
         toast.error(error.message);
@@ -133,6 +143,20 @@ const BookingMenu = ({ barbershop }: IBookingMenuProps) => {
           Confirmar reserva
         </Button>
       </SheetFooter>
+
+      {checkoutBooking && (
+        <CheckoutDialog
+          open={!!checkoutBooking}
+          onOpenChange={(next) => {
+            if (!next) setCheckoutBooking(null);
+          }}
+          kind="booking"
+          targetId={checkoutBooking.bookingId}
+          totalBRL={checkoutBooking.total}
+          onPaid={handlePaid}
+          returnPath="/bookings"
+        />
+      )}
     </SheetContent>
   );
 };

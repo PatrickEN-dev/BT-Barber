@@ -20,13 +20,19 @@ interface ISaveBookingProps {
   serviceIds: string[];
 }
 
+interface SaveBookingResult {
+  bookingId: string;
+  /** Total of selected services, in BRL string ("45.00"). Used to spin up checkout. */
+  total: string;
+}
+
 export const saveBooking = async ({
   barbershopId,
   barberId,
   userId,
   date,
   serviceIds,
-}: ISaveBookingProps) => {
+}: ISaveBookingProps): Promise<SaveBookingResult> => {
   // Auth + IDOR guard: never trust the userId param. Derive it from the session
   // and require it to match what the client sent. This keeps the function shape
   // stable for callers while preventing impersonation.
@@ -57,7 +63,17 @@ export const saveBooking = async ({
     throw new BookingSlotTakenError();
   }
 
-  let bookingId: string | null = null;
+  // Snapshot service prices for totaling. Verify they all belong to the same shop.
+  const services = await db.service.findMany({
+    where: { id: { in: serviceIds }, barbershopId },
+    select: { id: true, price: true },
+  });
+  if (services.length !== serviceIds.length) {
+    throw new Error("Algum serviço não pertence a essa barbearia.");
+  }
+  const total = services.reduce((sum, s) => sum + Number(s.price), 0);
+
+  let bookingId: string;
 
   try {
     const booking = await db.booking.create({
@@ -83,14 +99,14 @@ export const saveBooking = async ({
   revalidatePath("/");
   revalidatePath("/bookings");
 
-  if (bookingId) {
-    await audit({
-      userId,
-      action: "BOOKING_CREATE",
-      barbershopId,
-      targetType: "Booking",
-      targetId: bookingId,
-      metadata: { barberId, serviceCount: serviceIds.length },
-    });
-  }
+  await audit({
+    userId,
+    action: "BOOKING_CREATE",
+    barbershopId,
+    targetType: "Booking",
+    targetId: bookingId,
+    metadata: { barberId, serviceCount: serviceIds.length, total: total.toFixed(2) },
+  });
+
+  return { bookingId, total: total.toFixed(2) };
 };

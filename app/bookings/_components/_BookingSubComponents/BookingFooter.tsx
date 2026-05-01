@@ -1,30 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { cancelBooking } from "@/app/_actions/booking";
-
-import { toast } from "sonner";
-import { IBookingProps } from "../interfaces";
-import AlertBookingCancelDialog from "../_Modals/AlertBookingCancelDialog";
 import { isFuture } from "date-fns";
-import { SheetClose, SheetFooter } from "@/app/_components/ui/sheet";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { cancelBookingWithRefund } from "@/app/_actions/payment";
 import { Button } from "@/app/_components/ui/button";
 import { AlertDialog, AlertDialogTrigger } from "@/app/_components/ui/alert-dialog";
+import { SheetClose, SheetFooter } from "@/app/_components/ui/sheet";
+
+import AlertBookingCancelDialog from "../_Modals/AlertBookingCancelDialog";
+import { IBookingProps } from "../interfaces";
+
+const formatRefund = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const BookingFooter = ({ booking }: IBookingProps) => {
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const isBookingConfirmed = isFuture(booking.date);
 
   const handleCancelClick = async () => {
     setIsDeleteLoading(true);
 
     try {
-      await cancelBooking(booking.id);
+      const result = await cancelBookingWithRefund(booking.id);
 
-      toast.success("Reserva cancelada com sucesso!");
+      if (result.refundedCents > 0) {
+        const tierLabel =
+          result.tier === "FULL" ? "integral" : result.tier === "HALF" ? "parcial (50%)" : "";
+        toast.success("Reserva cancelada", {
+          description: `Estorno ${tierLabel} de ${formatRefund(
+            result.refundedCents
+          )} processado.`,
+        });
+      } else {
+        toast.success("Reserva cancelada", {
+          description:
+            "Cancelamento em cima da hora — não há estorno conforme política da barbearia.",
+        });
+      }
     } catch (error) {
-      console.error(error);
+      const msg = error instanceof Error ? error.message : "Erro ao cancelar.";
+      toast.error(msg);
     } finally {
       setIsDeleteLoading(false);
     }
