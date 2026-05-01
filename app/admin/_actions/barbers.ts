@@ -10,40 +10,43 @@ export const listShopBarbers = async (shopId: string) => {
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const barbers = await db.barber.findMany({
-    where: { barbershopId: shopId },
-    orderBy: { name: "asc" },
-    include: {
-      services: { select: { id: true, name: true } },
-      _count: { select: { Booking: true } },
-    },
-  });
+  // Single round-trip for everything: barbers + 3 aggregations across all of them.
+  const [barbers, last7Counts, upcomingCounts, last7BookingsForRevenue] = await Promise.all([
+    db.barber.findMany({
+      where: { barbershopId: shopId },
+      orderBy: { name: "asc" },
+      include: {
+        services: { select: { id: true, name: true } },
+        _count: { select: { Booking: true } },
+      },
+    }),
+    db.booking.groupBy({
+      by: ["barberId"],
+      where: { barbershopId: shopId, date: { gte: sevenDaysAgo, lt: now } },
+      _count: { _all: true },
+    }),
+    db.booking.groupBy({
+      by: ["barberId"],
+      where: { barbershopId: shopId, date: { gte: now } },
+      _count: { _all: true },
+    }),
+    db.booking.findMany({
+      where: { barbershopId: shopId, date: { gte: sevenDaysAgo, lt: now } },
+      select: {
+        barberId: true,
+        services: { select: { service: { select: { price: true } } } },
+      },
+    }),
+  ]);
 
-  const stats = await Promise.all(
-    barbers.map(async (b) => {
-      const [last7, upcoming, finishedBookings] = await Promise.all([
-        db.booking.count({
-          where: { barberId: b.id, date: { gte: sevenDaysAgo, lt: now } },
-        }),
-        db.booking.count({
-          where: { barberId: b.id, date: { gte: now } },
-        }),
-        db.booking.findMany({
-          where: { barberId: b.id, date: { gte: sevenDaysAgo, lt: now } },
-          include: { services: { include: { service: { select: { price: true } } } } },
-        }),
-      ]);
+  const last7CountByBarber = new Map(last7Counts.map((g) => [g.barberId, g._count._all]));
+  const upcomingCountByBarber = new Map(upcomingCounts.map((g) => [g.barberId, g._count._all]));
 
-      const revenueLast7 = finishedBookings.reduce(
-        (sum, bk) => sum + bk.services.reduce((acc, bs) => acc + Number(bs.service.price), 0),
-        0
-      );
-
-      return { barberId: b.id, last7, upcoming, revenueLast7 };
-    })
-  );
-
-  const statsById = new Map(stats.map((s) => [s.barberId, s]));
+  const revenueByBarber = new Map<string, number>();
+  for (const b of last7BookingsForRevenue) {
+    const total = b.services.reduce((acc, bs) => acc + Number(bs.service.price), 0);
+    revenueByBarber.set(b.barberId, (revenueByBarber.get(b.barberId) ?? 0) + total);
+  }
 
   return barbers.map((b) => ({
     id: b.id,
@@ -53,8 +56,8 @@ export const listShopBarbers = async (shopId: string) => {
     imageUrl: b.imageUrl,
     servicesCount: b.services.length,
     totalBookings: b._count.Booking,
-    last7: statsById.get(b.id)?.last7 ?? 0,
-    upcoming: statsById.get(b.id)?.upcoming ?? 0,
-    revenueLast7: statsById.get(b.id)?.revenueLast7 ?? 0,
+    last7: last7CountByBarber.get(b.id) ?? 0,
+    upcoming: upcomingCountByBarber.get(b.id) ?? 0,
+    revenueLast7: revenueByBarber.get(b.id) ?? 0,
   }));
 };

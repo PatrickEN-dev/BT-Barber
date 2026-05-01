@@ -1,9 +1,11 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+
 import { db } from "@/app/_lib/prisma";
-import { requireShopAccess } from "../_utils/requireOwner";
 import { serializeBookingWithRelations } from "@/app/_lib/serializers";
+import { requireShopAccess } from "../_utils/requireOwner";
 
 const PAGE_SIZE = 15;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -48,6 +50,12 @@ const buildDateFilter = (status: BookingStatus, range: BookingRange) => {
   return undefined;
 };
 
+const includeRelations = {
+  barber: true,
+  user: { select: { id: true, name: true, email: true, image: true } },
+  services: { include: { service: true } },
+} satisfies Prisma.BookingInclude;
+
 export const listShopBookings = async ({
   shopId,
   page = 1,
@@ -55,7 +63,7 @@ export const listShopBookings = async ({
   barberId,
   range = "any",
 }: ListParams) => {
-  await requireShopAccess(shopId);
+  const { shop } = await requireShopAccess(shopId);
 
   const dateFilter = buildDateFilter(status, range);
 
@@ -73,19 +81,14 @@ export const listShopBookings = async ({
       orderBy: { date: status === "past" ? "desc" : "asc" },
       skip,
       take: PAGE_SIZE,
-      include: {
-        barbershop: true,
-        barber: true,
-        user: { select: { id: true, name: true, email: true, image: true } },
-        services: { include: { service: true } },
-      },
+      include: includeRelations,
     }),
     db.booking.count({ where }),
   ]);
 
   return {
     bookings: bookings.map((b) => ({
-      ...serializeBookingWithRelations(b),
+      ...serializeBookingWithRelations({ ...b, barbershop: shop }),
       user: b.user,
     })),
     total,

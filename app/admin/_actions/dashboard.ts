@@ -1,15 +1,10 @@
 "use server";
 
-import { db } from "@/app/_lib/prisma";
-import { requireShopAccess } from "../_utils/requireOwner";
-import { serializeBookingWithRelations } from "@/app/_lib/serializers";
+import { Prisma } from "@prisma/client";
 
-const includeRelations = {
-  barbershop: true,
-  barber: true,
-  user: { select: { id: true, name: true, email: true, image: true } },
-  services: { include: { service: true } },
-} as const;
+import { db } from "@/app/_lib/prisma";
+import { serializeBookingWithRelations } from "@/app/_lib/serializers";
+import { requireShopAccess } from "../_utils/requireOwner";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -19,9 +14,15 @@ const startOfDay = (d: Date) => {
   return x;
 };
 
-const sumServicesPrice = <T extends { services: { service: { price: { toString: () => string } } }[] }>(
+const sumServicesPrice = <
+  T extends { services: { service: { price: { toString: () => string } } }[] },
+>(
   bookings: T[]
-) => bookings.reduce((sum, b) => sum + b.services.reduce((acc, bs) => acc + Number(bs.service.price), 0), 0);
+) =>
+  bookings.reduce(
+    (sum, b) => sum + b.services.reduce((acc, bs) => acc + Number(bs.service.price), 0),
+    0
+  );
 
 const pctDelta = (current: number, previous: number): number | null => {
   if (previous === 0) return current === 0 ? 0 : null;
@@ -39,18 +40,27 @@ export const getDashboardMetrics = async (shopId: string) => {
   const start14Ago = new Date(startToday.getTime() - 13 * DAY_MS);
   const end7Ahead = new Date(startToday.getTime() + 7 * DAY_MS);
 
+  // Booking includes drop `barbershop: true` (we already have it from requireShopAccess)
+  // and select only the fields the dashboard actually uses.
+  const includeRelations = {
+    barber: true,
+    user: { select: { id: true, name: true, email: true, image: true } },
+    services: { include: { service: true } },
+  } satisfies Prisma.BookingInclude;
+
   const [
     todayCount,
     yesterdayCount,
     next7Count,
     next7CountPrev,
-    totalClients,
+    distinctClientsAgg,
     finishedLast7,
     finishedPrev7,
     upcoming,
     todaysAgenda,
     finishedTotal,
     barbersAgg,
+    shopBarbers,
   ] = await Promise.all([
     db.booking.count({
       where: { barbershopId: shopId, date: { gte: startToday, lt: endToday } },
@@ -64,18 +74,22 @@ export const getDashboardMetrics = async (shopId: string) => {
     db.booking.count({
       where: { barbershopId: shopId, date: { gte: start7Ago, lt: now } },
     }),
-    db.booking.findMany({
+    db.booking.groupBy({
+      by: ["userId"],
       where: { barbershopId: shopId },
-      select: { userId: true },
-      distinct: ["userId"],
     }),
     db.booking.findMany({
       where: { barbershopId: shopId, date: { gte: start7Ago, lt: now } },
-      select: { date: true, services: { select: { service: { select: { price: true } } } } },
+      select: {
+        date: true,
+        services: { select: { service: { select: { price: true } } } },
+      },
     }),
     db.booking.findMany({
       where: { barbershopId: shopId, date: { gte: start14Ago, lt: start7Ago } },
-      select: { services: { select: { service: { select: { price: true } } } } },
+      select: {
+        services: { select: { service: { select: { price: true } } } },
+      },
     }),
     db.booking.findMany({
       where: { barbershopId: shopId, date: { gte: now } },
@@ -94,6 +108,10 @@ export const getDashboardMetrics = async (shopId: string) => {
       where: { barbershopId: shopId, date: { gte: start7Ago, lt: now } },
       _count: { _all: true },
     }),
+    db.barber.findMany({
+      where: { barbershopId: shopId },
+      select: { id: true, name: true, imageUrl: true },
+    }),
   ]);
 
   const revenueLast7 = sumServicesPrice(finishedLast7);
@@ -105,7 +123,7 @@ export const getDashboardMetrics = async (shopId: string) => {
 
   // Receita por dia (últimos 7) — buckets por dia local
   const revenueByDay: { date: string; label: string; revenue: number; count: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 6; i >= 0; i -= 1) {
     const d = new Date(startToday.getTime() - i * DAY_MS);
     revenueByDay.push({
       date: d.toISOString(),
@@ -127,27 +145,24 @@ export const getDashboardMetrics = async (shopId: string) => {
     revenueByDay[idx].count += 1;
   }
 
-  // Bookings por barbeiro (últimos 7)
-  const barberIds = barbersAgg.map((g) => g.barberId);
-  const barbers =
-    barberIds.length > 0
-      ? await db.barber.findMany({
-          where: { id: { in: barberIds } },
-          select: { id: true, name: true, imageUrl: true },
-        })
-      : [];
-  const byId = new Map(barbers.map((b) => [b.id, b]));
+  // Bookings por barbeiro (últimos 7) — usa shopBarbers já no batch acima
+  const barberById = new Map(shopBarbers.map((b) => [b.id, b]));
   const totalBookingsByBarber = barbersAgg.reduce((sum, g) => sum + g._count._all, 0);
   const bookingsByBarber = barbersAgg
     .map((g) => ({
       barberId: g.barberId,
-      name: byId.get(g.barberId)?.name ?? "—",
-      imageUrl: byId.get(g.barberId)?.imageUrl ?? null,
+      name: barberById.get(g.barberId)?.name ?? "—",
+      imageUrl: barberById.get(g.barberId)?.imageUrl ?? null,
       count: g._count._all,
       share: totalBookingsByBarber > 0 ? (g._count._all / totalBookingsByBarber) * 100 : 0,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
+
+  // The serializer expects a `barbershop` relation on the booking. We already have it from
+  // requireShopAccess, so we inject the snapshot instead of fetching N redundant copies.
+  const decorate = (booking: (typeof upcoming)[number]) =>
+    serializeBookingWithRelations({ ...booking, barbershop: shop });
 
   return {
     shop: {
@@ -158,7 +173,7 @@ export const getDashboardMetrics = async (shopId: string) => {
     },
     todayCount,
     next7Count,
-    totalClients: totalClients.length,
+    totalClients: distinctClientsAgg.length,
     revenueLast7,
     finishedLast7Count,
     finishedTotal,
@@ -170,11 +185,11 @@ export const getDashboardMetrics = async (shopId: string) => {
     revenueByDay,
     bookingsByBarber,
     upcoming: upcoming.map((b) => ({
-      ...serializeBookingWithRelations(b),
+      ...decorate(b),
       user: b.user,
     })),
     todaysAgenda: todaysAgenda.map((b) => ({
-      ...serializeBookingWithRelations(b),
+      ...decorate(b),
       user: b.user,
     })),
   };
