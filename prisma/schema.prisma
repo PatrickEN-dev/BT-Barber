@@ -36,6 +36,21 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentMethod {
+  PIX
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING        // PaymentIntent created, awaiting payment
+  PAID           // Webhook confirmed payment
+  FAILED         // Card declined or processing failed
+  EXPIRED        // PIX QR expired before payment
+  REFUNDED       // Full refund processed
+  PARTIAL_REFUND // Partial refund (cancellation fee retained)
+  CANCELED       // Manual cancel before payment attempt
+}
+
 model User {
   id            String             @id @default(cuid())
   name          String?
@@ -51,6 +66,7 @@ model User {
   barberProfile Barber?            @relation("BarberAccount")
   notesAbout    BarberClientNote[] @relation("ClientNotes")
   Order         Order[]
+  Payment       Payment[]
   auditLogs     AuditLog[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
@@ -70,6 +86,7 @@ model Barbershop {
   Barbers   Barber[]
   Products  Product[]
   Orders    Order[]
+  Payments  Payment[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -102,6 +119,8 @@ model Booking {
   barberId     String
   barber       Barber           @relation(fields: [barberId], references: [id], onDelete: Cascade)
   services     BookingService[]
+  payment      Payment?
+  noShow       Boolean          @default(false)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -259,6 +278,7 @@ model Order {
   total        Decimal     @db.Decimal(10, 2)
   notes        String?
   items        OrderItem[]
+  payment      Payment?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -278,4 +298,44 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  externalId      String?       @unique // Stripe payment_intent_id
+  amount          Decimal       @db.Decimal(10, 2)
+  refundedAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  currency        String        @default("BRL")
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+
+  // XOR: payment is for either a booking or an order, never both.
+  bookingId       String?       @unique
+  booking         Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  orderId         String?       @unique
+  order           Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershopId    String
+  barbershop      Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Restrict)
+
+  // PIX-specific (null for card payments)
+  qrCodeImage     String?       @db.Text // base64 data URL
+  qrCodeText      String?       @db.Text // copy-paste code
+  expiresAt       DateTime?
+
+  // Lifecycle timestamps
+  paidAt          DateTime?
+  failedAt        DateTime?
+  refundedAt      DateTime?
+  failureReason   String?
+
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([barbershopId, status])
+  @@index([status, expiresAt])
 }

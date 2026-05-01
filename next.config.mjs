@@ -10,12 +10,15 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const csp = [
   `default-src 'self'`,
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  // Stripe.js loads from js.stripe.com.
+  `script-src 'self' 'unsafe-inline' https://js.stripe.com${isDev ? " 'unsafe-eval'" : ""}`,
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
   `font-src 'self' data: https://fonts.gstatic.com`,
   `img-src 'self' data: blob: https://utfs.io https://picsum.photos https://fastly.picsum.photos https://images.unsplash.com https://loremflickr.com https://upload.wikimedia.org https://lh3.googleusercontent.com`,
-  `connect-src 'self' https://*.supabase.co https://*.supabase.com https://accounts.google.com`,
-  `frame-src https://accounts.google.com`,
+  // Stripe API + telemetry endpoints for client-side fetches.
+  `connect-src 'self' https://*.supabase.co https://*.supabase.com https://accounts.google.com https://api.stripe.com https://hooks.stripe.com https://m.stripe.network`,
+  // Stripe iframes for card collection + 3DS challenges.
+  `frame-src https://accounts.google.com https://js.stripe.com https://hooks.stripe.com`,
   `frame-ancestors 'none'`,
   `form-action 'self' https://accounts.google.com`,
   `base-uri 'self'`,

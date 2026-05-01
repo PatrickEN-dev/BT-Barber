@@ -1,4 +1,4 @@
-import type { Prisma, Product, Service } from "@prisma/client";
+import type { Payment, Prisma, Product, Service } from "@prisma/client";
 
 export type SerializedService = Omit<Service, "price"> & { price: string };
 
@@ -68,4 +68,15 @@ export const serializeOrderWithRelations = (
     unitPrice: item.unitPrice.toString(),
     product: serializeProduct(item.product),
   })),
+});
+
+export type SerializedPayment = Omit<Payment, "amount" | "refundedAmount"> & {
+  amount: string;
+  refundedAmount: string;
+};
+
+export const serializePayment = (payment: Payment): SerializedPayment => ({
+  ...payment,
+  amount: payment.amount.toString(),
+  refundedAmount: payment.refundedAmount.toString(),
 });
