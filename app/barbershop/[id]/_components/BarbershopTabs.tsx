@@ -17,6 +17,16 @@ interface IBarbershopTabsProps {
 }
 
 const BarbershopTabs = ({ barbershopData, products }: IBarbershopTabsProps) => {
+  const showShop = barbershopData.hasShop;
+
+  if (!showShop) {
+    return (
+      <Container className="pt-4 lg:pt-6">
+        <BarbershopServices barbershopData={barbershopData} />
+      </Container>
+    );
+  }
+
   return (
     <>
       <Container className="pt-4 lg:pt-6">

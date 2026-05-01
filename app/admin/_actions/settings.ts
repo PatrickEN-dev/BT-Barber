@@ -9,6 +9,7 @@ interface SettingsPayload {
   address: string;
   phone: string;
   imageUrl: string;
+  hasShop?: boolean;
 }
 
 export const updateShopSettings = async (shopId: string, payload: SettingsPayload) => {
@@ -25,11 +26,18 @@ export const updateShopSettings = async (shopId: string, payload: SettingsPayloa
 
   await db.barbershop.update({
     where: { id: shopId },
-    data: { name, address, phone: phone || null, imageUrl },
+    data: {
+      name,
+      address,
+      phone: phone || null,
+      imageUrl,
+      ...(typeof payload.hasShop === "boolean" ? { hasShop: payload.hasShop } : {}),
+    },
   });
 
   revalidatePath(`/admin/${shopId}/settings`);
   revalidatePath(`/admin/${shopId}/dashboard`);
+  revalidatePath(`/admin/${shopId}/products`);
   revalidatePath(`/barbershop/${shopId}`);
   revalidatePath("/");
 };

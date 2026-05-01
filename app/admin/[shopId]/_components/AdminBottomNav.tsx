@@ -9,6 +9,7 @@ import {
   SettingsIcon,
   ShoppingBagIcon,
   UsersIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/app/_lib/utils";
 
@@ -16,14 +17,26 @@ interface IProps {
   shopId: string;
 }
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  matchPaths?: string[];
+}
+
 const AdminBottomNav = ({ shopId }: IProps) => {
   const pathname = usePathname();
   const base = `/admin/${shopId}`;
 
-  const items = [
+  const items: NavItem[] = [
     { href: `${base}/dashboard`, label: "Início", icon: LayoutDashboardIcon },
     { href: `${base}/bookings`, label: "Agenda", icon: CalendarIcon },
-    { href: `${base}/orders`, label: "Loja", icon: ShoppingBagIcon },
+    {
+      href: `${base}/orders`,
+      label: "Loja",
+      icon: ShoppingBagIcon,
+      matchPaths: [`${base}/orders`, `${base}/products`],
+    },
     { href: `${base}/barbers`, label: "Equipe", icon: ScissorsIcon },
     { href: `${base}/clients`, label: "Clientes", icon: UsersIcon },
     { href: `${base}/services`, label: "Ajustes", icon: SettingsIcon },
@@ -36,7 +49,8 @@ const AdminBottomNav = ({ shopId }: IProps) => {
     >
       <ul className="grid grid-cols-6">
         {items.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const matchAgainst = item.matchPaths ?? [item.href];
+          const active = matchAgainst.some((p) => pathname.startsWith(p));
           const Icon = item.icon;
           return (
             <li key={item.href} className="relative">

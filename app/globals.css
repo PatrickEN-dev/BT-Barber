@@ -71,7 +71,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased min-h-screen font-sans;
+    @apply flex min-h-screen flex-col bg-background font-sans text-foreground antialiased;
     font-feature-settings: "ss01", "cv11";
   }
   h1,

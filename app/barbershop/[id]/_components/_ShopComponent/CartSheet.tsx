@@ -112,6 +112,7 @@ const CartSheet = ({ shopId, shopName, trigger }: ICartSheetProps) => {
                       alt={item.name}
                       fill
                       sizes="64px"
+                      unoptimized
                       className="object-cover"
                     />
                   </div>

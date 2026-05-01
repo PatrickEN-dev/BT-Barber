@@ -5,7 +5,8 @@ const db = new PrismaClient();
 interface ProductTemplate {
   name: string;
   description: string;
-  imageSlug: string;
+  imageTags: string;
+  imageSeed: string;
   price: number;
   category: ProductCategory;
   stockMin: number;
@@ -17,7 +18,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Cerveja Heineken 350ml",
     description: "Long neck gelado, ideal pra acompanhar o corte.",
-    imageSlug: "heineken-beer",
+    imageTags: "heineken,beer,bottle",
+    imageSeed: "heineken-bottle",
     price: 8,
     category: "DRINK",
     stockMin: 12,
@@ -26,7 +28,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Coca-Cola Lata 350ml",
     description: "Refrigerante clássico geladinho.",
-    imageSlug: "cocacola-can",
+    imageTags: "coca-cola,can,soda",
+    imageSeed: "cocacola-can",
     price: 6,
     category: "DRINK",
     stockMin: 20,
@@ -35,7 +38,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Água Mineral 500ml",
     description: "Água sem gás na temperatura ambiente.",
-    imageSlug: "water-bottle",
+    imageTags: "water,bottle,mineral",
+    imageSeed: "water-bottle",
     price: 4,
     category: "DRINK",
     stockMin: 25,
@@ -44,7 +48,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Red Bull Energético 250ml",
     description: "Energético pra renovar o astral.",
-    imageSlug: "redbull-energy",
+    imageTags: "redbull,energy,drink",
+    imageSeed: "redbull-can",
     price: 12,
     category: "DRINK",
     stockMin: 6,
@@ -55,7 +60,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Pomada Modeladora 100g",
     description: "Fixação forte com efeito matte natural.",
-    imageSlug: "hair-pomade-matte",
+    imageTags: "pomade,hair,jar",
+    imageSeed: "hair-pomade",
     price: 38,
     category: "HAIR_CARE",
     stockMin: 5,
@@ -64,7 +70,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Gel Fixador Premium",
     description: "Modelagem firme sem deixar resíduos brancos.",
-    imageSlug: "hair-gel-premium",
+    imageTags: "hair-gel,styling,bottle",
+    imageSeed: "hair-gel",
     price: 22,
     category: "HAIR_CARE",
     stockMin: 8,
@@ -73,7 +80,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Cera Modeladora Matte",
     description: "Acabamento seco com fixação média.",
-    imageSlug: "hair-wax-matte",
+    imageTags: "hair-wax,matte,jar",
+    imageSeed: "hair-wax",
     price: 32,
     category: "HAIR_CARE",
     stockMin: 5,
@@ -82,7 +90,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Shampoo Profissional 250ml",
     description: "Limpeza profunda sem ressecar os fios.",
-    imageSlug: "shampoo-pro-bottle",
+    imageTags: "shampoo,bottle,bathroom",
+    imageSeed: "shampoo-pro",
     price: 45,
     category: "HAIR_CARE",
     stockMin: 4,
@@ -93,7 +102,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Óleo de Barba 30ml",
     description: "Hidrata, amacia e perfuma a barba.",
-    imageSlug: "beard-oil-bottle",
+    imageTags: "beard-oil,grooming,bottle",
+    imageSeed: "beard-oil",
     price: 38,
     category: "BEARD_CARE",
     stockMin: 6,
@@ -102,7 +112,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Balm Hidratante 50g",
     description: "Controla volume e mantém a barba alinhada.",
-    imageSlug: "beard-balm-jar",
+    imageTags: "beard-balm,grooming,jar",
+    imageSeed: "beard-balm",
     price: 32,
     category: "BEARD_CARE",
     stockMin: 5,
@@ -113,7 +124,8 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   {
     name: "Pente de Madeira",
     description: "Pente artesanal antiestático em madeira nobre.",
-    imageSlug: "wooden-comb-acc",
+    imageTags: "wooden-comb,barber,grooming",
+    imageSeed: "wooden-comb",
     price: 18,
     category: "ACCESSORY",
     stockMin: 8,
@@ -121,13 +133,22 @@ const PRODUCT_CATALOG: ProductTemplate[] = [
   },
 ];
 
-const imageUrl = (slug: string, shopIdx: number) =>
-  `https://picsum.photos/seed/${slug}-${shopIdx}/600/600`;
+const imageUrl = (tags: string, seed: string, shopIdx: number) =>
+  `https://loremflickr.com/600/600/${tags}/all?lock=${shopIdx}-${seed}`;
 
 const randomBetween = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
 async function main() {
+  const shouldReset = process.argv.includes("--reset");
+
+  if (shouldReset) {
+    console.log("⚠️  --reset: wiping OrderItems, Orders and Products...");
+    await db.orderItem.deleteMany({});
+    await db.order.deleteMany({});
+    await db.product.deleteMany({});
+  }
+
   const shops = await db.barbershop.findMany({ orderBy: { createdAt: "asc" } });
 
   if (shops.length === 0) {
@@ -150,7 +171,7 @@ async function main() {
       barbershopId: shop.id,
       name: tpl.name,
       description: tpl.description,
-      imageUrl: imageUrl(tpl.imageSlug, idx),
+      imageUrl: imageUrl(tpl.imageTags, tpl.imageSeed, idx),
       price: new Prisma.Decimal(tpl.price),
       stock: randomBetween(tpl.stockMin, tpl.stockMax),
       category: tpl.category,

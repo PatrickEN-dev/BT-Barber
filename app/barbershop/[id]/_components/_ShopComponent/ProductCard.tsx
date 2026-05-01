@@ -53,6 +53,7 @@ const ProductCard = ({ product, shopName }: IProductCardProps) => {
           alt={product.name}
           fill
           sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          unoptimized
           className="object-cover transition-transform duration-500 ease-smooth group-hover/product:scale-105"
         />
         {outOfStock && (

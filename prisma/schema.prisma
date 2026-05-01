@@ -61,6 +61,7 @@ model Barbershop {
   address   String
   phone     String?
   imageUrl  String
+  hasShop   Boolean   @default(true)
   Service   Service[]
   Booking   Booking[]
   ownerId   String?
