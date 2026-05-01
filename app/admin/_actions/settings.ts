@@ -21,8 +21,20 @@ export const updateShopSettings = async (shopId: string, payload: SettingsPayloa
   const imageUrl = payload.imageUrl.trim();
 
   if (name.length < 2) throw new Error("Nome muito curto.");
+  if (name.length > 120) throw new Error("Nome muito longo.");
   if (address.length < 2) throw new Error("Endereço inválido.");
+  if (address.length > 200) throw new Error("Endereço muito longo.");
+  if (phone.length > 30) throw new Error("Telefone inválido.");
   if (!imageUrl) throw new Error("Informe a URL da imagem.");
+  try {
+    const u = new URL(imageUrl);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      throw new Error("URL da imagem deve ser http ou https.");
+    }
+  } catch {
+    throw new Error("URL da imagem inválida.");
+  }
+  if (imageUrl.length > 2048) throw new Error("URL da imagem muito longa.");
 
   await db.barbershop.update({
     where: { id: shopId },

@@ -90,6 +90,10 @@ export const createOrder = async (
 export const findUserOrders = async (
   userId: string
 ): Promise<SerializedOrderWithRelations[]> => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.id !== userId) {
+    throw new UnauthorizedError();
+  }
   const orders = await db.order.findMany({
     where: { userId },
     include: ORDER_INCLUDE,
@@ -101,6 +105,15 @@ export const findUserOrders = async (
 export const findShopOrders = async (
   barbershopId: string
 ): Promise<SerializedOrderWithRelations[]> => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new UnauthorizedError();
+
+  const shop = await db.barbershop.findFirst({
+    where: { id: barbershopId, ownerId: session.user.id },
+    select: { id: true },
+  });
+  if (!shop) throw new UnauthorizedError();
+
   const orders = await db.order.findMany({
     where: { barbershopId },
     include: ORDER_INCLUDE,

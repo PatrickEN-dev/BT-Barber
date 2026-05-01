@@ -76,6 +76,38 @@ Each route segment provides `loading.tsx` and `error.tsx`.
   - `prisma/seed-products.ts` adds 11 `Product` per shop (4 drinks + 4 hair-care + 2 beard-care + 1 accessory) with verified Wikimedia Commons image URLs. Idempotent skip by default; pass `--reset` to wipe `OrderItem` + `Order` + `Product` and re-create. Run only after `seed.ts`.
   - None of the seeds create users, owners, sessions, or bookings.
 
+### Security posture
+
+This is a SaaS handling user PII, bookings and orders. The threat model + invariants:
+
+**1. Server actions are the only mutation surface.** No public REST endpoints (other than NextAuth). Every server action that mutates state must:
+
+- Check `getServerSession(authOptions)` first (or use one of the `require*` helpers).
+- Validate ownership of the target resource — never trust an `id` parameter at face value. Either:
+  - Use a scoped `where` clause that includes the owner constraint atomically (e.g. `db.booking.deleteMany({ where: { id, userId: session.user.id } })` and check `result.count`), or
+  - Read the resource first, compare the FK to `session.user.id` (or shop ownership), and throw `UnauthorizedError` if mismatched.
+- Throw `UnauthorizedError` (not return silently) on auth failures, so the client gets a consistent error and the action never silently no-ops.
+
+**2. IDOR review checklist for new actions:**
+
+- Reads that take `userId`/`shopId`/`barbershopId` as a param: enforce that param matches the session's user/owned-shop. Don't trust the caller — server actions are POST endpoints exposed to the network and can be hit directly with arbitrary JSON.
+- Existing patterns to copy:
+  - User-scoped reads (e.g. `findConfirmedBookings`, `findUserOrders`): `requireOwnUserId(userId)` style — fetch session, fail if `session.user.id !== userId`.
+  - Shop-scoped reads (e.g. `findShopOrders`): inline `db.barbershop.findFirst({ where: { id, ownerId } })` ownership check, OR call `requireShopAccess(shopId)` from `app/admin/_utils/requireOwner.ts` (cached per request).
+  - Single-resource mutations (cancel, update, delete): scope the `where` clause atomically and check the affected row count when possible (see `cancelBooking`).
+
+**3. Input validation lives in the server action**, not in the client form. Validate length, type, ranges, and **URL protocol** (`http:`/`https:` only) for any user-supplied URL — owners paste image URLs and `javascript:`/`data:` URIs would otherwise reach `<Image>`.
+
+**4. Database isolation (Supabase + Prisma).** The app connects via Prisma using the `postgres` superuser role (the pooler URLs in `DATABASE_URL`/`DIRECT_URL`), which **bypasses RLS by design**. Defense-in-depth comes from:
+
+- All public tables have RLS **enabled** but **no policies**, so direct access through Supabase REST API with `anon`/`authenticated` roles is **deny-all**. The `rls_auto_enable()` event trigger keeps this invariant when new tables are created. (Don't disable RLS on tables — even if Prisma bypasses it, RLS is what makes leaking the anon key non-fatal.)
+- `EXECUTE` on `public.rls_auto_enable()` is granted only to `postgres` and `service_role`, not to `anon`/`authenticated`.
+- All authorization decisions therefore live **in application code** (server actions). Adding RLS policies in the future is fine, but do not rely on RLS as the sole gate — Prisma still uses the bypass role.
+
+**5. Security headers** (`next.config.mjs`): `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security` for two years, `Permissions-Policy` denying camera/microphone/geolocation/interest-cohort, `X-XSS-Protection`, `poweredByHeader: false`. CSP is **not** set yet — Next 14 with inline script chunks needs nonces via middleware to do CSP cleanly. Adding CSP is a follow-up: run with `script-src 'self' 'nonce-...'` and verify all third-party origins (Google for OAuth pop-ups, Supabase for image hosts) are allow-listed.
+
+**6. Threats explicitly out of scope (documented gaps):** No rate limiting on server actions (mitigated by NextAuth's CSRF token + same-origin requirement, but a determined attacker with a logged-in session could still spam). No audit log for owner actions on orders/products. No CSP (see above).
+
 ### Auth model
 
 NextAuth with `PrismaAdapter` and Google provider, configured in `app/_lib/auth.ts`. `debug: true` is enabled only when `NODE_ENV === "development"`.

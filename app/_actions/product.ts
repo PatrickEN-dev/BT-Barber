@@ -45,11 +45,30 @@ const requireOwnerOf = async (barbershopId: string) => {
   if (!shop) throw new UnauthorizedError();
 };
 
+const isHttpsUrl = (raw: string) => {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const validate = (input: ProductInput) => {
-  if (!input.name?.trim()) throw new Error("Nome é obrigatório.");
-  if (!input.imageUrl?.trim()) throw new Error("URL da imagem é obrigatória.");
-  if (Number.isNaN(input.price) || input.price < 0) throw new Error("Preço inválido.");
-  if (!Number.isInteger(input.stock) || input.stock < 0) throw new Error("Estoque inválido.");
+  const name = input.name?.trim();
+  const imageUrl = input.imageUrl?.trim();
+  if (!name) throw new Error("Nome é obrigatório.");
+  if (name.length > 120) throw new Error("Nome muito longo (máx 120 caracteres).");
+  if (input.description && input.description.length > 500)
+    throw new Error("Descrição muito longa (máx 500 caracteres).");
+  if (!imageUrl) throw new Error("URL da imagem é obrigatória.");
+  if (!isHttpsUrl(imageUrl))
+    throw new Error("URL da imagem deve começar com http:// ou https://.");
+  if (imageUrl.length > 2048) throw new Error("URL da imagem muito longa.");
+  if (Number.isNaN(input.price) || input.price < 0 || input.price > 100000)
+    throw new Error("Preço inválido.");
+  if (!Number.isInteger(input.stock) || input.stock < 0 || input.stock > 100000)
+    throw new Error("Estoque inválido.");
 };
 
 export const createProduct = async (barbershopId: string, input: ProductInput) => {
