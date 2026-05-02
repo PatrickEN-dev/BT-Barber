@@ -30,6 +30,71 @@ interface CheckoutResult {
 }
 
 /**
+ * Centralized fee math. The barbershop's `platformFeePercent` (default 5%)
+ * is added on top of the subtotal — customer pays subtotal + fee, barbershop
+ * earns subtotal, platform retains fee.
+ *
+ * Always operates in cents to avoid floating-point drift, then converts back
+ * to Decimal-friendly BRL strings.
+ */
+interface FeeBreakdown {
+  subtotalBRL: string;
+  feeBRL: string;
+  totalBRL: string;
+  subtotalCents: number;
+  feeCents: number;
+  totalCents: number;
+}
+
+const computeFee = (subtotalBRL: number | string, feePercent: number | string): FeeBreakdown => {
+  const subtotalCents = toStripeAmount(subtotalBRL);
+  const percent = Number(feePercent);
+  const feeCents = Math.round((subtotalCents * percent) / 100);
+  const totalCents = subtotalCents + feeCents;
+  return {
+    subtotalCents,
+    feeCents,
+    totalCents,
+    subtotalBRL: (subtotalCents / 100).toFixed(2),
+    feeBRL: (feeCents / 100).toFixed(2),
+    totalBRL: (totalCents / 100).toFixed(2),
+  };
+};
+
+/**
+ * Quote the breakdown without creating any DB row or Stripe intent. Useful
+ * for the UI to show "subtotal + taxa = total" before the user clicks pay.
+ */
+export const quoteCheckoutFee = async (input: {
+  kind: "order" | "booking";
+  targetId: string;
+}): Promise<FeeBreakdown> => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new UnauthorizedError();
+  const userId = session.user.id;
+
+  if (input.kind === "order") {
+    const order = await db.order.findUnique({
+      where: { id: input.targetId },
+      include: { barbershop: { select: { platformFeePercent: true } } },
+    });
+    if (!order || order.userId !== userId) throw new UnauthorizedError();
+    return computeFee(order.total.toString(), order.barbershop.platformFeePercent.toString());
+  }
+
+  const booking = await db.booking.findUnique({
+    where: { id: input.targetId },
+    include: {
+      barbershop: { select: { platformFeePercent: true } },
+      services: { include: { service: { select: { price: true } } } },
+    },
+  });
+  if (!booking || booking.userId !== userId) throw new UnauthorizedError();
+  const subtotal = booking.services.reduce((sum, bs) => sum + Number(bs.service.price), 0);
+  return computeFee(subtotal, booking.barbershop.platformFeePercent.toString());
+};
+
+/**
  * Initiates a checkout for an existing Order. Creates a Stripe PaymentIntent
  * and persists a Payment row tracking the lifecycle. Returns the Payment plus
  * (for card payments) the client_secret needed to confirm on the frontend.
@@ -48,7 +113,11 @@ export const createOrderCheckout = async (
 
   const order = await db.order.findUnique({
     where: { id: input.orderId },
-    include: { payment: true, items: { include: { product: true } } },
+    include: {
+      payment: true,
+      items: { include: { product: true } },
+      barbershop: { select: { platformFeePercent: true } },
+    },
   });
   if (!order) throw new Error("Pedido não encontrado.");
   if (order.userId !== userId) throw new UnauthorizedError();
@@ -70,13 +139,13 @@ export const createOrderCheckout = async (
     throw new Error("Esse pedido não pode mais ser pago.");
   }
 
-  const amountCents = toStripeAmount(order.total.toString());
+  const fee = computeFee(order.total.toString(), order.barbershop.platformFeePercent.toString());
   const description = `Pedido ${order.id.slice(0, 8)} — ${order.items.length} ${
     order.items.length === 1 ? "item" : "itens"
   }`;
 
   const intent = await stripe.paymentIntents.create({
-    amount: amountCents,
+    amount: fee.totalCents,
     currency: "brl",
     description,
     payment_method_types: input.method === "PIX" ? ["pix"] : ["card"],
@@ -106,7 +175,9 @@ export const createOrderCheckout = async (
     where: { orderId: order.id },
     create: {
       externalId: intent.id,
-      amount: order.total,
+      amount: fee.totalBRL,
+      subtotalAmount: fee.subtotalBRL,
+      platformFeeAmount: fee.feeBRL,
       currency: "BRL",
       method: input.method,
       status: "PENDING",
@@ -121,6 +192,9 @@ export const createOrderCheckout = async (
     },
     update: {
       externalId: intent.id,
+      amount: fee.totalBRL,
+      subtotalAmount: fee.subtotalBRL,
+      platformFeeAmount: fee.feeBRL,
       method: input.method,
       status: "PENDING",
       qrCodeImage: pixDisplay?.image_url_png ?? null,
@@ -139,7 +213,13 @@ export const createOrderCheckout = async (
     barbershopId: order.barbershopId,
     targetType: "Order",
     targetId: order.id,
-    metadata: { paymentId: payment.id, method: input.method, amount: order.total.toString() },
+    metadata: {
+      paymentId: payment.id,
+      method: input.method,
+      subtotal: fee.subtotalBRL,
+      fee: fee.feeBRL,
+      total: fee.totalBRL,
+    },
   });
 
   revalidatePath("/orders");
@@ -227,7 +307,11 @@ export const createBookingCheckout = async (
 
   const booking = await db.booking.findUnique({
     where: { id: input.bookingId },
-    include: { payment: true, services: { include: { service: true } } },
+    include: {
+      payment: true,
+      services: { include: { service: true } },
+      barbershop: { select: { platformFeePercent: true } },
+    },
   });
   if (!booking) throw new Error("Reserva não encontrada.");
   if (booking.userId !== userId) throw new UnauthorizedError();
@@ -250,11 +334,11 @@ export const createBookingCheckout = async (
     };
   }
 
-  const total = booking.services.reduce((sum, bs) => sum + Number(bs.service.price), 0);
-  const amountCents = toStripeAmount(total);
+  const subtotal = booking.services.reduce((sum, bs) => sum + Number(bs.service.price), 0);
+  const fee = computeFee(subtotal, booking.barbershop.platformFeePercent.toString());
 
   const intent = await stripe.paymentIntents.create({
-    amount: amountCents,
+    amount: fee.totalCents,
     currency: "brl",
     description: `Reserva ${booking.id.slice(0, 8)} — ${booking.services.length} serviço${
       booking.services.length === 1 ? "" : "s"
@@ -285,7 +369,9 @@ export const createBookingCheckout = async (
     where: { bookingId: booking.id },
     create: {
       externalId: intent.id,
-      amount: total.toFixed(2),
+      amount: fee.totalBRL,
+      subtotalAmount: fee.subtotalBRL,
+      platformFeeAmount: fee.feeBRL,
       currency: "BRL",
       method: input.method,
       status: "PENDING",
@@ -299,6 +385,9 @@ export const createBookingCheckout = async (
     },
     update: {
       externalId: intent.id,
+      amount: fee.totalBRL,
+      subtotalAmount: fee.subtotalBRL,
+      platformFeeAmount: fee.feeBRL,
       method: input.method,
       status: "PENDING",
       qrCodeImage: pixDisplay?.image_url_png ?? null,
@@ -317,7 +406,13 @@ export const createBookingCheckout = async (
     barbershopId: booking.barbershopId,
     targetType: "Booking",
     targetId: booking.id,
-    metadata: { paymentId: payment.id, method: input.method, amount: total.toFixed(2) },
+    metadata: {
+      paymentId: payment.id,
+      method: input.method,
+      subtotal: fee.subtotalBRL,
+      fee: fee.feeBRL,
+      total: fee.totalBRL,
+    },
   });
 
   revalidatePath("/bookings");
@@ -333,31 +428,53 @@ export const createBookingCheckout = async (
  * Cancellation policy for paid bookings.
  *
  * Tiers (configurable per shop later — hard-coded global for v1):
- * - 24h+ before booking date → 100% refund (free cancel)
- * - 2-24h before → 50% refund (50% retained as fee)
- * - <2h before / no-show → 0% refund (100% retained)
+ * - 24h+ before booking date → 100% refund of subtotal
+ * - 2-24h before → 50% refund of subtotal (other 50% kept by barbershop as fee)
+ * - <2h before / no-show → 0% refund of subtotal (full subtotal kept as fee)
+ *
+ * Platform fee is ALWAYS retained, regardless of tier. The customer paid for
+ * the platform's service of processing the transaction, so the fee stays.
  */
 const HOURS_BEFORE_FULL_REFUND = 24;
 const HOURS_BEFORE_HALF_REFUND = 2;
 
 interface RefundComputation {
+  /** Amount we ask Stripe to refund — calculated against subtotal, not total. */
   refundCents: number;
-  feeCents: number;
+  /** Subtotal portion the barbershop keeps as cancellation fee. */
+  shopFeeCents: number;
+  /** Platform fee — always retained, never refunded. */
+  platformFeeCents: number;
   tier: "FULL" | "HALF" | "NONE";
 }
 
-const computeRefund = (totalAmount: string, bookingDate: Date): RefundComputation => {
-  const totalCents = toStripeAmount(totalAmount);
+const computeRefund = (
+  subtotalAmount: string,
+  platformFeeAmount: string,
+  bookingDate: Date
+): RefundComputation => {
+  const subtotalCents = toStripeAmount(subtotalAmount);
+  const platformFeeCents = toStripeAmount(platformFeeAmount);
   const hoursUntil = (bookingDate.getTime() - Date.now()) / (1000 * 60 * 60);
 
   if (hoursUntil >= HOURS_BEFORE_FULL_REFUND) {
-    return { refundCents: totalCents, feeCents: 0, tier: "FULL" };
+    return { refundCents: subtotalCents, shopFeeCents: 0, platformFeeCents, tier: "FULL" };
   }
   if (hoursUntil >= HOURS_BEFORE_HALF_REFUND) {
-    const half = Math.floor(totalCents / 2);
-    return { refundCents: half, feeCents: totalCents - half, tier: "HALF" };
+    const half = Math.floor(subtotalCents / 2);
+    return {
+      refundCents: half,
+      shopFeeCents: subtotalCents - half,
+      platformFeeCents,
+      tier: "HALF",
+    };
   }
-  return { refundCents: 0, feeCents: totalCents, tier: "NONE" };
+  return {
+    refundCents: 0,
+    shopFeeCents: subtotalCents,
+    platformFeeCents,
+    tier: "NONE",
+  };
 };
 
 /**
@@ -400,7 +517,11 @@ export const cancelBookingWithRefund = async (
     return { tier: "FULL", refundedCents: 0 };
   }
 
-  const refund = computeRefund(booking.payment.amount.toString(), booking.date);
+  const refund = computeRefund(
+    booking.payment.subtotalAmount.toString(),
+    booking.payment.platformFeeAmount.toString(),
+    booking.date
+  );
 
   // Issue partial/full refund via Stripe (skipped if tier=NONE).
   if (refund.refundCents > 0 && booking.payment.externalId) {
@@ -408,7 +529,12 @@ export const cancelBookingWithRefund = async (
       payment_intent: booking.payment.externalId,
       amount: refund.refundCents,
       reason: "requested_by_customer",
-      metadata: { bookingId, tier: refund.tier, feeCents: String(refund.feeCents) },
+      metadata: {
+        bookingId,
+        tier: refund.tier,
+        shopFeeCents: String(refund.shopFeeCents),
+        platformFeeCents: String(refund.platformFeeCents),
+      },
     });
     // Webhook will mark Payment as REFUNDED/PARTIAL_REFUND. We don't update
     // the row here to avoid race conditions with the webhook.
@@ -430,7 +556,8 @@ export const cancelBookingWithRefund = async (
     metadata: {
       tier: refund.tier,
       refundedCents: refund.refundCents,
-      feeCents: refund.feeCents,
+      shopFeeCents: refund.shopFeeCents,
+      platformFeeCents: refund.platformFeeCents,
     },
   });
 

@@ -38,14 +38,21 @@ export const serializeProduct = (product: Product): SerializedProduct => ({
   price: product.price.toString(),
 });
 
-export type SerializedPayment = Omit<Payment, "amount" | "refundedAmount"> & {
+export type SerializedPayment = Omit<
+  Payment,
+  "amount" | "subtotalAmount" | "platformFeeAmount" | "refundedAmount"
+> & {
   amount: string;
+  subtotalAmount: string;
+  platformFeeAmount: string;
   refundedAmount: string;
 };
 
 export const serializePayment = (payment: Payment): SerializedPayment => ({
   ...payment,
   amount: payment.amount.toString(),
+  subtotalAmount: payment.subtotalAmount.toString(),
+  platformFeeAmount: payment.platformFeeAmount.toString(),
   refundedAmount: payment.refundedAmount.toString(),
 });
 

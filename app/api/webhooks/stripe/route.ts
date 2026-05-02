@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import type Stripe from "stripe";
@@ -47,6 +48,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  // Idempotency: dedupe by Stripe event.id. If we've already processed this
+  // event, skip silently and return 200 so Stripe stops retrying.
+  try {
+    await db.webhookEvent.create({
+      data: { id: event.id, type: event.type },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json({ received: true, deduplicated: true });
+    }
+    throw err;
+  }
+
   try {
     switch (event.type) {
       case "payment_intent.succeeded":
@@ -67,7 +81,8 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error("[stripe-webhook] handler error for", event.type, err);
-    // Return 500 so Stripe retries with backoff.
+    // Roll back the dedup row so a retry can re-process.
+    await db.webhookEvent.delete({ where: { id: event.id } }).catch(() => {});
     return NextResponse.json({ error: "Handler failed" }, { status: 500 });
   }
 
@@ -105,6 +120,11 @@ const handlePaymentSucceeded = async (intent: Stripe.PaymentIntent) => {
     revalidatePath("/orders");
   }
   if (payment.bookingId) {
+    // Clear holdUntil — booking is now permanent and the slot is locked.
+    await db.booking.update({
+      where: { id: payment.bookingId },
+      data: { holdUntil: null },
+    });
     revalidatePath("/bookings");
     revalidatePath(`/admin/${payment.barbershopId}/bookings`);
   }

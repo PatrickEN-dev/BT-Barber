@@ -67,28 +67,33 @@ model User {
   notesAbout    BarberClientNote[] @relation("ClientNotes")
   Order         Order[]
   Payment       Payment[]
+  Payouts       Payout[]           @relation("PayoutCreatedBy")
   auditLogs     AuditLog[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
 
 model Barbershop {
-  id        String    @id @default(uuid())
-  name      String
-  address   String
-  phone     String?
-  imageUrl  String
-  hasShop   Boolean   @default(true)
-  Service   Service[]
-  Booking   Booking[]
-  ownerId   String?
-  owner     User?     @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  Barbers   Barber[]
-  Products  Product[]
-  Orders    Order[]
-  Payments  Payment[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  name               String
+  address            String
+  phone              String?
+  imageUrl           String
+  hasShop            Boolean   @default(true)
+  // Platform fee % charged on top of subtotal at checkout (e.g. 5.00 = 5%).
+  // Customer pays subtotal + fee; barbershop earns subtotal; platform keeps fee.
+  platformFeePercent Decimal   @default(5.00) @db.Decimal(5, 2)
+  Service            Service[]
+  Booking            Booking[]
+  ownerId            String?
+  owner              User?     @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  Barbers            Barber[]
+  Products           Product[]
+  Orders             Order[]
+  Payments           Payment[]
+  Payouts            Payout[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([ownerId])
 }
@@ -121,12 +126,16 @@ model Booking {
   services     BookingService[]
   payment      Payment?
   noShow       Boolean          @default(false)
+  // Hold expires at this time if not paid by then. NULL once payment is PAID.
+  // The cleanup job deletes bookings where holdUntil < now() AND payment.status != PAID.
+  holdUntil    DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   @@unique([barberId, date])
   @@unique([userId, date])
   @@index([barbershopId, date])
+  @@index([holdUntil])
 }
 
 model BookingService {
@@ -303,7 +312,13 @@ model OrderItem {
 model Payment {
   id              String        @id @default(cuid())
   externalId      String?       @unique // Stripe payment_intent_id
+  // amount = total charged to customer = subtotal + platformFeeAmount.
   amount          Decimal       @db.Decimal(10, 2)
+  // What the barbershop earns (= price of services/products).
+  subtotalAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  // What the platform retains (5% by default, configurable per shop).
+  // Always retained — never refunded to the customer, even on cancellation.
+  platformFeeAmount Decimal     @default(0) @db.Decimal(10, 2)
   refundedAmount  Decimal       @default(0) @db.Decimal(10, 2)
   currency        String        @default("BRL")
   method          PaymentMethod
@@ -338,4 +353,33 @@ model Payment {
   @@index([userId, createdAt])
   @@index([barbershopId, status])
   @@index([status, expiresAt])
+}
+
+/// Idempotency log for Stripe webhooks. Stripe can deliver the same event
+/// multiple times — we attempt to insert the event id before processing, and
+/// skip if there's a conflict.
+model WebhookEvent {
+  id          String   @id // Stripe event.id
+  type        String
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+}
+
+/// Manual payout from the platform's Stripe balance to the barbershop owner
+/// (out-of-system PIX/TED). Records that we sent a slice of the pending
+/// balance to the shop. Single-account model — when we migrate to Stripe
+/// Connect, this table becomes a bookkeeping mirror of the automatic transfers.
+model Payout {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  amount       Decimal    @db.Decimal(10, 2)
+  paidAt       DateTime   @default(now())
+  notes        String? // free-form (transfer reference, period covered, etc)
+  createdById  String
+  createdBy    User       @relation("PayoutCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([barbershopId, paidAt])
+  @@index([createdById])
 }

@@ -3,6 +3,7 @@
 import {
   ArrowLeftIcon,
   CalendarIcon,
+  CoinsIcon,
   HomeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -48,6 +49,7 @@ const adminNavItems = (shopId: string): NavItem[] => {
     },
     { href: `${base}/barbers`, label: "Equipe", icon: ScissorsIcon },
     { href: `${base}/clients`, label: "Clientes", icon: UsersIcon },
+    { href: `${base}/payouts`, label: "Repasses", icon: CoinsIcon },
     { href: `${base}/settings`, label: "Ajustes", icon: SettingsIcon },
   ];
 };
@@ -117,6 +119,12 @@ const AdminHeader = ({ shopName, shopId, shopImageUrl }: IProps) => {
           <Link href="/admin">
             <ArrowLeftIcon size={16} className="mr-2" />
             Trocar barbearia
+          </Link>
+        </Button>
+        <Button variant="outline" className="justify-start" asChild>
+          <Link href={`/admin/${shopId}/payouts`}>
+            <CoinsIcon size={16} className="mr-2" />
+            Repasses
           </Link>
         </Button>
         <Button variant="outline" className="justify-start" asChild>

@@ -22,9 +22,16 @@ interface ISaveBookingProps {
 
 interface SaveBookingResult {
   bookingId: string;
-  /** Total of selected services, in BRL string ("45.00"). Used to spin up checkout. */
+  /** Subtotal (sum of service prices). UI uses this + shop's fee % to display total. */
   total: string;
+  /** True if this is a fresh booking; false if we returned an existing unpaid hold. */
+  isNew: boolean;
 }
+
+// How long the slot stays held while waiting for the customer to complete
+// payment. Mirrors the Stripe PIX expiration (30min) so the cleanup window
+// is roughly aligned with payment expiry.
+const HOLD_DURATION_MS = 30 * 60 * 1000;
 
 export const saveBooking = async ({
   barbershopId,
@@ -34,8 +41,7 @@ export const saveBooking = async ({
   serviceIds,
 }: ISaveBookingProps): Promise<SaveBookingResult> => {
   // Auth + IDOR guard: never trust the userId param. Derive it from the session
-  // and require it to match what the client sent. This keeps the function shape
-  // stable for callers while preventing impersonation.
+  // and require it to match what the client sent.
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || session.user.id !== userId) {
     throw new UnauthorizedError();
@@ -73,7 +79,10 @@ export const saveBooking = async ({
   }
   const total = services.reduce((sum, s) => sum + Number(s.price), 0);
 
+  const holdUntil = new Date(Date.now() + HOLD_DURATION_MS);
+
   let bookingId: string;
+  let isNew = true;
 
   try {
     const booking = await db.booking.create({
@@ -82,6 +91,7 @@ export const saveBooking = async ({
         barberId,
         userId,
         date,
+        holdUntil,
         services: {
           create: serviceIds.map((serviceId) => ({ serviceId })),
         },
@@ -91,6 +101,25 @@ export const saveBooking = async ({
     bookingId = booking.id;
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      // Either (userId, date) or (barberId, date) constraint hit. Check if it
+      // was the user's own abandoned hold — if so, return that booking so the
+      // user can resume checkout instead of being stuck.
+      const existing = await db.booking.findFirst({
+        where: { userId, barberId, date },
+        include: { payment: true },
+      });
+      if (
+        existing &&
+        existing.userId === userId &&
+        (!existing.payment || existing.payment.status !== "PAID")
+      ) {
+        // Refresh the hold window so the user has a fresh 30min to pay.
+        await db.booking.update({
+          where: { id: existing.id },
+          data: { holdUntil },
+        });
+        return { bookingId: existing.id, total: total.toFixed(2), isNew: false };
+      }
       throw new BookingSlotTakenError();
     }
     throw err;
@@ -105,8 +134,13 @@ export const saveBooking = async ({
     barbershopId,
     targetType: "Booking",
     targetId: bookingId,
-    metadata: { barberId, serviceCount: serviceIds.length, total: total.toFixed(2) },
+    metadata: {
+      barberId,
+      serviceCount: serviceIds.length,
+      total: total.toFixed(2),
+      holdUntil: holdUntil.toISOString(),
+    },
   });
 
-  return { bookingId, total: total.toFixed(2) };
+  return { bookingId, total: total.toFixed(2), isNew };
 };

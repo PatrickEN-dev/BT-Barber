@@ -118,50 +118,82 @@ This is a SaaS handling user PII, bookings and orders. The threat model + invari
   - No CSP nonces — `'unsafe-inline'` is allowed for scripts/styles. Tightening to nonces is the next CSP iteration.
   - User-pasted product image URLs are validated for `http(s)://` protocol but not for actual image content-type. We use `<Image unoptimized>` so no server-side proxy fetch happens; the click target is always the parent `<Link>`, so phishing surface is small but non-zero. Long-term mitigation: switch product images to UploadThing-hosted uploads (utfs.io already whitelisted).
 
-### Payments (Stripe)
+### Payments (Stripe) + monetization (platform fee)
 
-Both `Order` (lojinha) and `Booking` (serviço) support online payment via **PIX** or **Cartão**, processed by **Stripe Brazil** (BRL settlement). The platform uses a **single Stripe account model** — money lands in BT-Barber's account, owner gets paid out-of-band. Stripe Connect (split payments per shop) is the next step when scaling — see comment near `app/_actions/payment.ts`.
+Both `Order` (lojinha) and `Booking` (serviço) support online payment via **PIX** or **Cartão**, processed by **Stripe Brazil** (BRL settlement). The platform uses a **single Stripe account model** — money lands in BT-Barber's account, owner gets paid out-of-band via PIX/TED. Stripe Connect (split payments per shop) is the next step when scaling.
 
-**Schema** ([prisma/schema.prisma](prisma/schema.prisma) `Payment` model):
-- 1:1 with either `Booking` or `Order` (XOR via two unique nullable FKs)
-- `externalId` = Stripe `payment_intent_id`
-- `method` (`PIX | CARD`) + `status` (`PENDING | PAID | FAILED | EXPIRED | REFUNDED | PARTIAL_REFUND | CANCELED`)
-- `qrCodeImage` + `qrCodeText` + `expiresAt` for PIX (null for card)
-- `refundedAmount` tracks partial refunds for cancellation fees
+**Monetization: transparent platform fee.** When a customer pays online:
+- `subtotal` = price of services/products (what the barbershop earns)
+- `platformFeeAmount` = `subtotal × Barbershop.platformFeePercent / 100` (default **5%**)
+- `total` (= `Payment.amount`) = `subtotal + platformFeeAmount` — what the customer is charged
+- Customer sees the breakdown in `<CheckoutDialog>` ("Subtotal R$ 50 + Taxa de serviço R$ 2,50 = Total R$ 52,50"). Transparent by design — different from Uber/iFood (hidden fee taken from the merchant) and matching AirBnB-style booking fees.
+- `platformFeeAmount` is **always retained** by the platform, even on cancellation/refund. Customer paid for the platform's transaction service, we keep that work even if the rest is refunded.
+- `Barbershop.platformFeePercent` is `Decimal(5,2)`. Default 5.00 globally; override per shop manually via Prisma Studio. Don't expose to shop owners — it's a platform-level decision.
 
-**Server actions** ([app/_actions/payment.ts](app/_actions/payment.ts)):
-- `createOrderCheckout({orderId, method})` / `createBookingCheckout({bookingId, method})` — creates a Stripe `PaymentIntent`, persists `Payment` row. PIX returns the QR; card returns a `clientSecret` for Stripe Elements. Reuses an existing PENDING payment if user reopens the dialog.
-- `getPaymentStatus(paymentId)` — polling fallback in case the webhook is slow. Calls `stripe.paymentIntents.retrieve` and forwards the status if it advanced past PENDING.
-- `cancelBookingWithRefund(bookingId)` — customer-facing booking cancel with **tiered refund policy** (hard-coded in `computeRefund`): `≥24h before → 100% refund` / `2–24h → 50% (50% retained as fee)` / `<2h → 0% (100% retained)`. Stripe issues the refund; webhook later flips the Payment to `REFUNDED`/`PARTIAL_REFUND`.
-- `markBookingNoShow(bookingId)` — owner-only, post-booking-time. Sets `Booking.noShow = true`, retains 100% of payment as no-show fee. No Stripe refund issued.
+**Schema** ([prisma/schema.prisma](prisma/schema.prisma)):
+- `Payment` model — 1:1 with either `Booking` or `Order` (XOR via two unique nullable FKs). Fields: `amount` (= total), `subtotalAmount` (shop's cut), `platformFeeAmount` (platform's cut), `refundedAmount` (running total of refunds), `externalId` (Stripe `payment_intent_id`), `method` (PIX|CARD), `status` (PENDING|PAID|FAILED|EXPIRED|REFUNDED|PARTIAL_REFUND|CANCELED), QR fields for PIX.
+- `Booking.holdUntil` — set to `now + 30min` on `saveBooking`. Slot is "held" while customer goes through checkout. If payment confirms, webhook clears `holdUntil`. If user abandons, the cleanup cron deletes the booking and frees the slot.
+- `WebhookEvent` table — idempotency log keyed on Stripe `event.id`. Webhook handler attempts to insert before processing; if duplicate (P2002), skips silently.
+- `Payout` model — record of out-of-band PIX/TED transfers from platform to shop. Single-account model bookkeeping.
+
+**Server actions** ([app/_actions/payment.ts](app/_actions/payment.ts), [app/_actions/payout.ts](app/_actions/payout.ts)):
+- `quoteCheckoutFee({kind, targetId})` — returns `{ subtotalBRL, feeBRL, totalBRL }` for the UI to display before the user clicks pay. No DB writes; no Stripe call.
+- `createOrderCheckout({orderId, method})` / `createBookingCheckout({bookingId, method})` — creates a Stripe `PaymentIntent` for `total` (= subtotal + fee), persists Payment row with all 3 amounts. Reuses existing PENDING payment if user reopens the dialog.
+- `getPaymentStatus(paymentId)` — polling fallback in case the webhook is slow. Calls `stripe.paymentIntents.retrieve` and forwards status if it advanced past PENDING.
+- `cancelBookingWithRefund(bookingId)` — customer-facing booking cancel. Refund tier applies to **subtotal only**: `≥24h before → 100%` / `2–24h → 50% (other 50% retained by shop as cancellation fee)` / `<2h → 0% (full subtotal kept by shop)`. **Platform fee is always retained**. Issues partial Stripe refund with `amount: refundCents`; webhook flips Payment to REFUNDED/PARTIAL_REFUND.
+- `markBookingNoShow(bookingId)` — owner-only, post-booking-time. Sets `Booking.noShow = true`, retains 100% of payment as no-show fee.
 - `refundPaymentByOwner(paymentId)` — manual override for owners; refunds whatever's left after partial refunds.
+- `getShopBalance(shopId)` — owner-facing aggregation: `pendingBRL` = `totalEarned - totalPaidOut`. Used by `/admin/[shopId]/payouts` page.
+- `recordPayout({barbershopId, amountBRL, notes})` — records an out-of-band transfer from platform to shop. Currently gated by `requireOwnerOf` (weak — replace with platform-admin role gate when added).
 
 **Webhook** ([app/api/webhooks/stripe/route.ts](app/api/webhooks/stripe/route.ts)):
 - Endpoint: `/api/webhooks/stripe`. Verifies HMAC signature with `STRIPE_WEBHOOK_SECRET`.
-- **Idempotent**: every handler reads the `Payment` row and only transitions forward (PENDING → PAID never goes backward).
+- **Idempotent two ways**: dedup by `event.id` via `WebhookEvent` insert (returns early on P2002), AND every handler only transitions forward (PENDING → PAID never goes backward).
+- On handler error, deletes the dedup row so Stripe's retry can re-process.
 - Handles `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`.
 - On `payment_intent.succeeded` for an Order, automatically transitions `Order.status` from PENDING → CONFIRMED.
+- On `payment_intent.succeeded` for a Booking, clears `holdUntil` (booking is now permanent).
 - Dev: run `stripe listen --forward-to localhost:3000/api/webhooks/stripe` — the CLI prints the `whsec_*` secret to put in `STRIPE_WEBHOOK_SECRET`.
 
+**Hold cleanup** ([app/api/cron/cleanup-bookings/route.ts](app/api/cron/cleanup-bookings/route.ts)):
+- Deletes bookings where `holdUntil < now()` AND no payment confirmed.
+- Auth: `Authorization: Bearer $CRON_SECRET` header.
+- Schedule: ideally every 5 minutes. Can be wired up via Vercel Cron, GitHub Actions schedule, or any external scheduler. Without a scheduler, slots stay held until manually cleaned (call the endpoint via curl).
+
 **UI** ([app/_components/checkout/](app/_components/checkout/)):
-- `<CheckoutDialog>` — modal with PIX/Cartão tabs. Generic over `kind: "order" | "booking"` + `targetId`.
+- `<CheckoutDialog>` — modal with PIX/Cartão tabs. Generic over `kind: "order" | "booking"` + `targetId`. Shows the fee breakdown above the tabs by calling `quoteCheckoutFee` on open.
 - `<PixPanel>` — renders QR + copia-cola code, polls `getPaymentStatus` every 3s as a fallback (webhook is the primary signal), countdown to expiration (30min default).
 - `<StripeCardForm>` — Stripe `<PaymentElement>` (handles card + 3DS challenges). Locale `pt-BR`, BRL.
-- Order checkout: triggered from `CartSheet` after `createOrder` returns. Cart is preserved until payment lands (in case user closes & retries).
-- Booking checkout: triggered from `BookingMenu` after `saveBooking` returns. Pre-payment is **recommended** — current flow opens checkout immediately after the slot is reserved, but the `Booking` row exists regardless of payment status (slot is held).
+- Order checkout: triggered from `CartSheet` after `createOrder` returns. Cart is preserved until payment lands.
+- Booking checkout: triggered from `BookingMenu` after `saveBooking` returns. The booking row is created with `holdUntil = now + 30min` so the slot is held during checkout.
 
 **Status badges** ([app/_components/orders/](app/_components/orders/)): `<OrderStatusBadge>` for the order lifecycle, `<PaymentStatusBadge>` for the payment lifecycle. Admin shows both stacked; customer order card shows both.
+
+**Owner payouts UI** ([app/admin/[shopId]/payouts/page.tsx](app/admin/%5BshopId%5D/payouts/page.tsx)):
+- 4 KPI cards: A receber, Total recebido bruto, Estornado, Taxa retida pela plataforma.
+- Histórico de Payout entries with date + amount + notes.
+- Linked from AdminHeader Sheet (mobile) and DesktopTopNav (desktop). Not in AdminBottomNav (already at 6 items).
 
 **Cancellation policy hard-coded constants** in `app/_actions/payment.ts`:
 - `HOURS_BEFORE_FULL_REFUND = 24`
 - `HOURS_BEFORE_HALF_REFUND = 2`
-Per-shop overrides are a future feature — when added, store on `Barbershop` (e.g. `cancellationPolicyHours: { full: 24, half: 2 }`).
+- `HOLD_DURATION_MS = 30 * 60 * 1000` (in `saveBooking`)
+Per-shop overrides are a future feature.
 
 **Env vars** (see `.env.example`):
 - `STRIPE_SECRET_KEY` (`sk_test_*` / `sk_live_*`)
 - `STRIPE_WEBHOOK_SECRET` (`whsec_*` from `stripe listen` in dev, or from Dashboard > Webhooks in prod)
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_test_*` / `pk_live_*`)
-- CSP in `next.config.mjs` allows `js.stripe.com`, `api.stripe.com`, `hooks.stripe.com`, `m.stripe.network`. Don't remove these without verifying card flow still works (Stripe injects scripts + iframes).
+- `CRON_SECRET` — bearer token for `/api/cron/*` endpoints. Generate with `openssl rand -hex 32`.
+- CSP in `next.config.mjs` allows `js.stripe.com`, `api.stripe.com`, `hooks.stripe.com`, `m.stripe.network`. Don't remove without verifying card flow.
+
+**Future: Stripe Connect migration.** When 5+ active shops or R$5k+/month volume:
+1. Add `Barbershop.stripeAccountId String?` (Connect Express account id)
+2. Owner onboarding: `stripe.accounts.create({ type: 'express' })` + `stripe.accountLinks.create()` → KYC flow
+3. Update PaymentIntent creation: `transfer_data: { destination: shop.stripeAccountId }, application_fee_amount: feeCents`
+4. Funds flow directly to shop's Connect account; platform retains application_fee
+5. Refunds: `stripe.refunds.create({ payment_intent, reverse_transfer: true })` reverses both legs
+6. The `Payout` table becomes a bookkeeping mirror of automatic transfers.
 
 ### Auth model
 
