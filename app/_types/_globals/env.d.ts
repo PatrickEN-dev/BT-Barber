@@ -10,5 +10,7 @@ declare namespace NodeJS {
     STRIPE_WEBHOOK_SECRET: string;
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: string;
     CRON_SECRET: string;
+    /** Comma-separated list of emails that bypass owner gates and can record payouts. */
+    PLATFORM_ADMIN_EMAILS?: string;
   }
 }

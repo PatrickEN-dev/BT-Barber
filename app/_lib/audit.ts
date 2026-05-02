@@ -8,6 +8,9 @@ export type AuditAction =
   | "ORDER_CREATE"
   | "ORDER_STATUS_UPDATE"
   | "ORDER_CANCEL"
+  | "PAYMENT_SUCCEEDED"
+  | "PAYMENT_REFUNDED"
+  | "PAYOUT_RECORD"
   | "PRODUCT_CREATE"
   | "PRODUCT_UPDATE"
   | "PRODUCT_TOGGLE_ACTIVE"
@@ -15,13 +18,14 @@ export type AuditAction =
   | "SHOP_SETTINGS_UPDATE"
   | "SERVICE_CREATE"
   | "SERVICE_UPDATE"
-  | "SERVICE_DELETE";
+  | "SERVICE_DELETE"
+  | "TERMS_ACCEPTED";
 
 interface AuditInput {
   userId: string;
   action: AuditAction;
   barbershopId?: string | null;
-  targetType?: "Order" | "Product" | "Booking" | "Service" | "Barbershop";
+  targetType?: "Order" | "Product" | "Booking" | "Service" | "Barbershop" | "User";
   targetId?: string;
   metadata?: Record<string, unknown> | null;
 }

@@ -3,6 +3,7 @@
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { CreditCardIcon, QrCodeIcon } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -246,6 +247,43 @@ const CheckoutDialog = ({
             ) : null}
           </TabsContent>
         </Tabs>
+
+        {kind === "booking" && (
+          <details className="mt-2 rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer select-none font-semibold text-foreground">
+              Política de cancelamento
+            </summary>
+            <ul className="mt-2 space-y-1">
+              <li>
+                <strong className="text-foreground">24h ou mais antes</strong> da reserva:
+                reembolso de 100% do valor dos serviços.
+              </li>
+              <li>
+                <strong className="text-foreground">Entre 2h e 24h antes</strong>: reembolso de
+                50% (a outra metade fica com a barbearia como taxa de cancelamento).
+              </li>
+              <li>
+                <strong className="text-foreground">Menos de 2h antes ou no-show</strong>: sem
+                reembolso.
+              </li>
+              <li className="pt-1">
+                A taxa de serviço da plataforma é retida em todos os casos.
+              </li>
+            </ul>
+          </details>
+        )}
+
+        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          Ao confirmar o pagamento você aceita nossos{" "}
+          <Link href="/termos" target="_blank" className="underline hover:text-foreground">
+            Termos de Uso
+          </Link>{" "}
+          e{" "}
+          <Link href="/privacidade" target="_blank" className="underline hover:text-foreground">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
       </DialogContent>
     </Dialog>
   );

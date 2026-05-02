@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { audit } from "@/app/_lib/audit";
 import { db } from "@/app/_lib/prisma";
+import { requirePlatformAdmin } from "@/app/_lib/platformAdmin";
 import { rateLimit } from "@/app/_lib/rateLimit";
 
 import { UnauthorizedError } from "./_errors";
@@ -119,52 +120,52 @@ export const getShopBalance = async (shopId: string): Promise<ShopBalance> => {
 
 /**
  * Record a manual payout from the platform to a shop. The actual money
- * transfer happens out-of-band (PIX/TED initiated by the platform admin
- * from their own bank). This action just bookkeeps it.
+ * transfer happens out-of-band (PIX/TED initiated by the platform operator
+ * from the platform's bank). This action just bookkeeps it so the shop's
+ * "pending" balance reflects what they've already received.
  *
- * Restricted to platform admins. For now, "platform admin" = anyone who
- * owns shops. When we have a real platform-admin role, gate this further.
- *
- * Pragmatically: in dev/early production, this is called manually via Prisma
- * Studio. The action exists so a future admin UI can call it.
+ * Gated by PLATFORM_ADMIN_EMAILS allowlist — shop owners must NOT be able to
+ * mark their own payouts (they could otherwise zero out their pending balance
+ * without ever receiving a transfer).
  */
 export const recordPayout = async (input: {
   barbershopId: string;
   amountBRL: string;
   notes?: string;
 }) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new UnauthorizedError();
+  const admin = await requirePlatformAdmin();
 
-  // Until we have a true platform-admin role, only the shop owner can record
-  // their own payout (essentially marking what they've received). This is a
-  // weak check — replace with an admin role gate when we add one.
-  await requireOwnerOf(input.barbershopId);
+  // Validate the target shop exists — fail fast on typos.
+  const shop = await db.barbershop.findUnique({
+    where: { id: input.barbershopId },
+    select: { id: true },
+  });
+  if (!shop) throw new Error("Barbearia não encontrada.");
 
   const amount = Number(input.amountBRL);
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("Valor inválido.");
   if (amount > 1_000_000) throw new Error("Valor muito alto, verifica o input.");
 
-  await rateLimit(`shop:${input.barbershopId}:payout`, { max: 5, windowMs: 60_000 });
+  await rateLimit(`platform:payout`, { max: 30, windowMs: 60_000 });
 
   const payout = await db.payout.create({
     data: {
       barbershopId: input.barbershopId,
       amount: new Prisma.Decimal(amount.toFixed(2)),
       notes: input.notes?.trim() || null,
-      createdById: session.user.id,
+      createdById: admin.userId,
     },
   });
 
   revalidatePath(`/admin/${input.barbershopId}/payouts`);
 
   await audit({
-    userId: session.user.id,
-    action: "SHOP_SETTINGS_UPDATE", // closest fit; could add PAYOUT_RECORD action later
+    userId: admin.userId,
+    action: "PAYOUT_RECORD",
     barbershopId: input.barbershopId,
     targetType: "Barbershop",
     targetId: input.barbershopId,
-    metadata: { payoutId: payout.id, amount: amount.toFixed(2) },
+    metadata: { payoutId: payout.id, amount: amount.toFixed(2), platformAdmin: admin.email },
   });
 
   return { id: payout.id };

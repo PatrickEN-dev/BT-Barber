@@ -17,6 +17,10 @@ declare module "next-auth" {
       role: UserRole;
       theme: Theme;
       capabilities: SessionCapabilities;
+      /** ISO timestamp string of terms acceptance, or null if never accepted. */
+      termsAcceptedAt: string | null;
+      /** Version accepted (compare against TERMS_VERSION to detect re-prompt). */
+      termsVersion: string | null;
     };
   }
 }

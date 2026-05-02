@@ -43,8 +43,18 @@ const UserOrderCard = ({ order }: IUserOrderCardProps) => {
   const handleCancel = () => {
     startTransition(async () => {
       try {
-        await cancelOrder(order.id);
-        toast.success("Pedido cancelado");
+        const result = await cancelOrder(order.id);
+        if (result.refundedCents > 0) {
+          const refundLabel = (result.refundedCents / 100).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          });
+          toast.success("Pedido cancelado", {
+            description: `Estorno de ${refundLabel} processado. Cai na fatura em até 7 dias úteis.`,
+          });
+        } else {
+          toast.success("Pedido cancelado");
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Erro ao cancelar";
         toast.error(msg);
@@ -142,8 +152,9 @@ const UserOrderCard = ({ order }: IUserOrderCardProps) => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Os produtos voltam pro estoque da barbearia. Essa ação não pode ser
-                      desfeita.
+                      Os produtos voltam pro estoque da barbearia.
+                      {order.payment?.status === "PAID" &&
+                        " O valor pago é estornado pra mesma forma de pagamento (cai em até 7 dias úteis). A taxa de serviço da plataforma é retida."}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

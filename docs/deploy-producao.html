@@ -1,0 +1,1698 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>BT-Barber — Guia de Deploy em Produção</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 22mm 18mm 22mm 18mm;
+        @bottom-center {
+          content: counter(page) " / " counter(pages);
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          font-size: 9pt;
+          color: #888;
+        }
+      }
+
+      :root {
+        --ink: #1a1a1a;
+        --muted: #666;
+        --rule: #e2e2e2;
+        --accent: #a05a2c;
+        --accent-soft: #fdf3ea;
+        --warn: #b35900;
+        --warn-soft: #fff5e6;
+        --danger: #b3261e;
+        --danger-soft: #fde8e8;
+        --code-bg: #f4f4f4;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.55;
+        color: var(--ink);
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        word-break: break-all;
+      }
+
+      h1 {
+        font-size: 28pt;
+        margin: 0 0 4pt;
+        letter-spacing: -0.5pt;
+      }
+
+      h2 {
+        font-size: 16pt;
+        margin: 28pt 0 8pt;
+        padding: 4pt 0 6pt;
+        border-bottom: 2pt solid var(--accent);
+        page-break-after: avoid;
+      }
+
+      h2 .num {
+        display: inline-block;
+        background: var(--accent);
+        color: white;
+        font-size: 11pt;
+        font-weight: 700;
+        padding: 2pt 7pt;
+        border-radius: 4pt;
+        margin-right: 8pt;
+        vertical-align: 2pt;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        font-size: 12pt;
+        margin: 14pt 0 4pt;
+        color: var(--ink);
+        page-break-after: avoid;
+      }
+
+      p {
+        margin: 4pt 0 8pt;
+      }
+
+      ol,
+      ul {
+        margin: 6pt 0 10pt;
+        padding-left: 18pt;
+      }
+
+      li {
+        margin: 2pt 0;
+      }
+
+      ol li::marker {
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      code,
+      pre {
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 9.5pt;
+      }
+
+      code {
+        background: var(--code-bg);
+        padding: 1pt 4pt;
+        border-radius: 3pt;
+      }
+
+      pre {
+        background: var(--code-bg);
+        padding: 8pt 10pt;
+        border-radius: 5pt;
+        border-left: 3pt solid var(--accent);
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 6pt 0 10pt;
+      }
+
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8pt 0 12pt;
+        font-size: 9.5pt;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 6pt 8pt;
+        border-bottom: 1pt solid var(--rule);
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--accent-soft);
+        font-weight: 600;
+        color: var(--accent);
+        border-bottom: 1.5pt solid var(--accent);
+      }
+
+      td code {
+        font-size: 8.5pt;
+        background: white;
+        border: 1pt solid var(--rule);
+      }
+
+      .cover {
+        height: calc(100vh - 80mm);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        page-break-after: always;
+      }
+
+      .cover .brand {
+        font-size: 11pt;
+        font-weight: 700;
+        letter-spacing: 4pt;
+        color: var(--accent);
+        text-transform: uppercase;
+      }
+
+      .cover h1 {
+        font-size: 42pt;
+        line-height: 1.05;
+        margin: 12pt 0 16pt;
+        max-width: 90%;
+      }
+
+      .cover .subtitle {
+        font-size: 14pt;
+        color: var(--muted);
+        max-width: 80%;
+      }
+
+      .cover .meta {
+        margin-top: 32pt;
+        font-size: 10pt;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .toc {
+        page-break-after: always;
+      }
+
+      .toc ol {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .toc ol li {
+        display: flex;
+        align-items: baseline;
+        gap: 8pt;
+        padding: 5pt 0;
+        border-bottom: 1pt dashed var(--rule);
+      }
+
+      .toc .toc-num {
+        flex: 0 0 22pt;
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .toc .toc-title {
+        flex: 1;
+      }
+
+      .toc .toc-time {
+        color: var(--muted);
+        font-size: 9pt;
+      }
+
+      .step {
+        page-break-inside: auto;
+      }
+
+      .step + .step {
+        page-break-before: auto;
+      }
+
+      .callout {
+        border-left: 3pt solid var(--accent);
+        background: var(--accent-soft);
+        padding: 8pt 12pt;
+        border-radius: 0 4pt 4pt 0;
+        margin: 8pt 0 12pt;
+        font-size: 10pt;
+      }
+
+      .callout.warn {
+        border-left-color: var(--warn);
+        background: var(--warn-soft);
+      }
+
+      .callout.warn::before {
+        content: '⚠ Atenção: ';
+        font-weight: 700;
+        color: var(--warn);
+      }
+
+      .callout.danger {
+        border-left-color: var(--danger);
+        background: var(--danger-soft);
+      }
+
+      .callout.danger::before {
+        content: '🚫 Crítico: ';
+        font-weight: 700;
+        color: var(--danger);
+      }
+
+      .callout.info::before {
+        content: 'ℹ Dica: ';
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .screen {
+        background: white;
+        border: 1pt solid var(--rule);
+        border-radius: 6pt;
+        padding: 10pt 12pt;
+        margin: 6pt 0 10pt;
+        font-size: 9.5pt;
+      }
+
+      .screen .label {
+        display: inline-block;
+        font-size: 8pt;
+        font-weight: 700;
+        color: var(--accent);
+        background: var(--accent-soft);
+        padding: 1pt 6pt;
+        border-radius: 3pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
+        margin-bottom: 4pt;
+      }
+
+      .checklist {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .checklist li {
+        position: relative;
+        padding-left: 18pt;
+        margin: 4pt 0;
+      }
+
+      .checklist li::before {
+        content: '☐';
+        position: absolute;
+        left: 0;
+        font-size: 12pt;
+        color: var(--accent);
+      }
+
+      hr {
+        border: 0;
+        border-top: 1pt solid var(--rule);
+        margin: 16pt 0;
+      }
+
+      .small {
+        font-size: 9pt;
+        color: var(--muted);
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 8.5pt;
+        font-weight: 700;
+        padding: 1pt 6pt;
+        border-radius: 10pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
+        vertical-align: 1pt;
+      }
+
+      .pill.live {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .pill.test {
+        background: #e8f0ff;
+        color: #1d4ed8;
+      }
+
+      .pill.req {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .pill.opt {
+        background: #eef7ee;
+        color: #1f7a1f;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ======================== CAPA ======================== -->
+    <section class="cover">
+      <span class="brand">BT-Barber · Deploy Guide</span>
+      <h1>Guia completo para subir o BT-Barber em produção</h1>
+      <p class="subtitle">
+        Passo a passo do que clicar, onde clicar e o que você deve estar vendo
+        em cada tela — Stripe, Google, Vercel, Supabase e domínio.
+      </p>
+      <div class="meta">
+        <strong>Versão:</strong> 1.0<br />
+        <strong>Data:</strong> Maio de 2026<br />
+        <strong>Para:</strong> Patrick (patrick.almeida@sttart.com.br)<br />
+        <strong>Pré-requisito:</strong> conta Stripe já criada e KYC enviado
+      </div>
+    </section>
+
+    <!-- ======================== TOC ======================== -->
+    <section class="toc">
+      <h2>Índice</h2>
+      <ol>
+        <li>
+          <span class="toc-num">1</span>
+          <span class="toc-title">Ativar conta Stripe (modo Live)</span>
+          <span class="toc-time">~10 min — espera KYC 1-2 dias</span>
+        </li>
+        <li>
+          <span class="toc-num">2</span>
+          <span class="toc-title">Habilitar PIX e cartão</span>
+          <span class="toc-time">~5 min em Test, até 1 dia em Live</span>
+        </li>
+        <li>
+          <span class="toc-num">3</span>
+          <span class="toc-title">Configurar branding e descritor de extrato</span>
+          <span class="toc-time">~10 min</span>
+        </li>
+        <li>
+          <span class="toc-num">4</span>
+          <span class="toc-title">Pegar as API keys de produção</span>
+          <span class="toc-time">~2 min</span>
+        </li>
+        <li>
+          <span class="toc-num">5</span>
+          <span class="toc-title">Adicionar conta bancária para receber repasses</span>
+          <span class="toc-time">~5 min</span>
+        </li>
+        <li>
+          <span class="toc-num">6</span>
+          <span class="toc-title">Comprar/configurar domínio</span>
+          <span class="toc-time">~30 min (espera DNS propagar)</span>
+        </li>
+        <li>
+          <span class="toc-num">7</span>
+          <span class="toc-title">Subir código no GitHub</span>
+          <span class="toc-time">~5 min</span>
+        </li>
+        <li>
+          <span class="toc-num">8</span>
+          <span class="toc-title">Importar projeto na Vercel</span>
+          <span class="toc-time">~3 min</span>
+        </li>
+        <li>
+          <span class="toc-num">9</span>
+          <span class="toc-title">Configurar variáveis de ambiente na Vercel</span>
+          <span class="toc-time">~10 min</span>
+        </li>
+        <li>
+          <span class="toc-num">10</span>
+          <span class="toc-title">Conectar domínio na Vercel</span>
+          <span class="toc-time">~10 min</span>
+        </li>
+        <li>
+          <span class="toc-num">11</span>
+          <span class="toc-title">Criar webhook da Stripe (modo Live)</span>
+          <span class="toc-time">~5 min</span>
+        </li>
+        <li>
+          <span class="toc-num">12</span>
+          <span class="toc-title">Configurar redirect do Google OAuth para produção</span>
+          <span class="toc-time">~5 min</span>
+        </li>
+        <li>
+          <span class="toc-num">13</span>
+          <span class="toc-title">Preencher placeholders das páginas legais</span>
+          <span class="toc-time">~15 min</span>
+        </li>
+        <li>
+          <span class="toc-num">14</span>
+          <span class="toc-title">Verificar Vercel Cron</span>
+          <span class="toc-time">~2 min</span>
+        </li>
+        <li>
+          <span class="toc-num">15</span>
+          <span class="toc-title">Smoke test em produção</span>
+          <span class="toc-time">~10 min</span>
+        </li>
+        <li>
+          <span class="toc-num">16</span>
+          <span class="toc-title">Hardening pós-launch (recomendado)</span>
+          <span class="toc-time">~30 min</span>
+        </li>
+      </ol>
+
+      <div class="callout info">
+        Cada passo lista o que clicar, o que você deve ver na tela e o que copiar
+        / guardar pra usar nos passos seguintes. Os valores que precisam viajar
+        entre passos (API keys, webhook secret, IDs) estão marcados em
+        <strong>negrito</strong> — anote num bloco de notas seguro enquanto
+        avança.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 1 ======================== -->
+    <section class="step">
+      <h2><span class="num">1</span> Ativar conta Stripe (modo Live)</h2>
+
+      <p>
+        Você já criou a conta. Agora precisa <strong>ativar pra receber dinheiro
+        de verdade</strong> — em modo "Test" você só consegue simular pagamentos.
+      </p>
+
+      <h3>1.1 Entrar no Dashboard</h3>
+      <ol>
+        <li>
+          Acessa
+          <a href="https://dashboard.stripe.com">https://dashboard.stripe.com</a>
+        </li>
+        <li>
+          No canto superior direito, perto do seu nome, tem um toggle
+          <span class="pill test">Test mode</span>. Clica nele para virar
+          <span class="pill live">Live mode</span> (cor laranja).
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Você deve ver</span>
+        <p>
+          O dashboard com uma faixa laranja no topo dizendo <em>"Activate your
+          account to start accepting live payments"</em> e um botão azul
+          <strong>"Activate account"</strong> ou
+          <strong>"Start activation"</strong>.
+        </p>
+      </div>
+
+      <h3>1.2 Preencher o formulário de ativação (KYC)</h3>
+      <ol>
+        <li>
+          Clica em <strong>"Activate account"</strong>. Vai abrir um wizard de 4-5
+          telas.
+        </li>
+        <li>
+          <strong>Tipo de negócio</strong>: escolhe entre Empresa (CNPJ) ou
+          Profissional autônomo (CPF). Se ainda não tem CNPJ, pode começar como
+          autônomo, mas a Stripe limita o volume — a partir de R$ 5k/mês ela
+          costuma exigir CNPJ.
+        </li>
+        <li>
+          <strong>Razão social / Nome legal</strong>: digite exatamente como está
+          no contrato social ou no CPF. Esse texto aparece no extrato do PIX do
+          cliente.
+        </li>
+        <li>
+          <strong>CNPJ ou CPF</strong>: o número.
+        </li>
+        <li>
+          <strong>Endereço</strong>: deve bater com o endereço fiscal cadastrado.
+        </li>
+        <li>
+          <strong>Descrição do produto/serviço</strong>: cola o texto abaixo (já
+          ajustado pra Stripe Brasil — costuma ser aceito sem revisão extra):
+        </li>
+      </ol>
+
+      <pre><code>Plataforma online (marketplace) que conecta clientes finais a barbearias
+parceiras no Brasil. Os clientes utilizam o site para:
+
+(1) Agendar serviços de barbearia com profissionais cadastrados — corte de
+cabelo, barba, sobrancelha, hidratação e demais cuidados estéticos masculinos
+e femininos;
+
+(2) Comprar produtos correlatos vendidos pelas barbearias parceiras —
+bebidas, cosméticos para cabelo e barba (pomadas, óleos, shampoos), e
+acessórios.
+
+A plataforma processa o pagamento online (PIX e cartão de crédito) e
+repassa o valor às barbearias parceiras periodicamente, retendo uma taxa de
+serviço sobre cada transação como contrapartida pela operação do
+marketplace.</code></pre>
+
+      <ol start="7">
+        <li>
+          <strong>Site/URL do negócio</strong>: o domínio que você vai usar (ex.:
+          <code>https://bt-barber.com.br</code>). Se ainda não tem, pode usar a
+          URL provisória do Vercel (<code>seu-projeto.vercel.app</code>) — atualize
+          depois.
+        </li>
+        <li>
+          <strong>MCC (categoria do comerciante)</strong>: escolha
+          <code>7230 — Beauty/Barber Shops</code>. É o código mais alinhado.
+        </li>
+        <li>
+          <strong>Ticket médio</strong>: <code>R$ 50</code>. Volume mensal
+          estimado: <code>R$ 1.000 — R$ 5.000</code> (começa baixo, depois pede
+          aumento).
+        </li>
+        <li>
+          <strong>Documento de identificação</strong>: foto/scan do RG ou CNH +
+          selfie segurando o documento. Stripe usa AI pra validar.
+        </li>
+        <li>
+          Ao final, <strong>"Submit"</strong>.
+        </li>
+      </ol>
+
+      <div class="callout">
+        A aprovação leva <strong>de algumas horas a 2 dias úteis</strong>. Você
+        recebe um email quando aprovado. Enquanto isso, dá pra continuar usando
+        Test mode pra desenvolver e testar. Os passos 6 a 13 deste guia podem
+        ser feitos em paralelo com a espera.
+      </div>
+
+      <div class="callout warn">
+        Se a Stripe pedir documentos extras (comprovante de endereço, contrato
+        social), vai ter um link no e-mail. Sobe os arquivos pelo
+        próprio dashboard, não responde por e-mail.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 2 ======================== -->
+    <section class="step">
+      <h2><span class="num">2</span> Habilitar PIX e cartão</h2>
+
+      <p>
+        Por padrão o cartão já vem ligado, mas <strong>PIX precisa ser ativado
+        manualmente</strong>, e o processo é separado em Test mode e Live mode.
+      </p>
+
+      <h3>2.1 Ativar em Test mode (pra você testar local)</h3>
+      <ol>
+        <li>
+          No dashboard, garanta que está em <span class="pill test">Test mode</span>
+          (toggle no canto superior direito).
+        </li>
+        <li>
+          Acessa
+          <a href="https://dashboard.stripe.com/test/settings/payment_methods"
+            >https://dashboard.stripe.com/test/settings/payment_methods</a
+          >
+          (ou: <strong>Settings → Payments → Payment methods</strong>).
+        </li>
+        <li>
+          Procura o card <strong>Pix</strong> na lista.
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Você deve ver</span>
+        <p>
+          Uma lista com cards de cada método: Card, Pix, Boleto, etc. Cada um
+          tem um toggle ou botão "Turn on".
+        </p>
+      </div>
+
+      <ol start="4">
+        <li>
+          Clica em <strong>"Turn on"</strong> no card do Pix.
+        </li>
+        <li>
+          Stripe pode pedir uma confirmação rápida com o nome do produto. Em
+          test mode é instantâneo.
+        </li>
+        <li>
+          Confirma também que <strong>Card</strong> está ligado (geralmente
+          já vem).
+        </li>
+      </ol>
+
+      <h3>2.2 Ativar em Live mode</h3>
+      <p>
+        Faz o mesmo processo em
+        <a href="https://dashboard.stripe.com/settings/payment_methods"
+          >https://dashboard.stripe.com/settings/payment_methods</a
+        >
+        (URL <em>sem</em> <code>/test/</code>).
+      </p>
+
+      <div class="callout warn">
+        Em Live mode, ativar PIX pode levar de minutos a 24h porque a Stripe
+        valida que sua conta está em compliance pra processar PIX no Brasil.
+        Você recebe email quando estiver liberado.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 3 ======================== -->
+    <section class="step">
+      <h2><span class="num">3</span> Configurar branding e descritor de extrato</h2>
+
+      <p>
+        Esse passo determina como o cliente vê a BT-Barber: no email de recibo
+        automático da Stripe, na fatura do cartão, e nas telas de checkout
+        hospedadas (caso use no futuro).
+      </p>
+
+      <h3>3.1 Branding (logo + cores)</h3>
+      <ol>
+        <li>
+          <strong>Settings → Branding</strong> (em qualquer modo — vale pros
+          dois).
+        </li>
+        <li>
+          <strong>Icon / Logo</strong>: PNG de no mínimo 128x128, recomendado
+          512x512, fundo transparente. Use o ícone scissors do app (você pode
+          exportar o SVG em <code>app/icon.svg</code> e converter pra PNG via
+          <a href="https://cloudconvert.com/svg-to-png">cloudconvert.com</a>).
+        </li>
+        <li>
+          <strong>Brand color</strong>: <code>#A05A2C</code> (marrom-cognac do
+          tema light do app — bate com o gradiente da marca).
+        </li>
+        <li>
+          <strong>Accent color</strong>: <code>#1FB6FF</code> (azul-elétrico do
+          tema dark — só aparece em alguns componentes secundários).
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Preview</span>
+        <p>
+          A direita da tela mostra um preview do recibo de cobrança. Confere
+          que o logo aparece centralizado e a cor primária está correta no
+          cabeçalho.
+        </p>
+      </div>
+
+      <h3>3.2 Descritor de extrato</h3>
+      <ol>
+        <li>
+          Ainda em <strong>Settings → Public details</strong> (ou
+          <strong>Public business info</strong>, depende da versão).
+        </li>
+        <li>
+          <strong>Statement descriptor</strong>: <code>BT-BARBER</code> (9
+          chars, máx 22, só letras/números/espaço/hífen)
+        </li>
+        <li>
+          <strong>Shortened descriptor / Prefix</strong>: <code>BT-BARBER</code>
+          (máx 10 chars)
+        </li>
+        <li>
+          <strong>Customer support phone</strong>: telefone real (Stripe exige
+          pra ativação). Pode ser celular.
+        </li>
+        <li>
+          <strong>Customer support email</strong>:
+          <code>contato@bt-barber.com.br</code>. Crie essa caixa no
+          Google Workspace, Zoho ou no provedor do seu domínio antes de
+          finalizar este passo.
+        </li>
+        <li>
+          <strong>Save</strong>.
+        </li>
+      </ol>
+
+      <div class="callout">
+        O <em>statement descriptor</em> é o que aparece na fatura do cartão do
+        cliente (ex.: "BT-BARBER"). No PIX, o que aparece é a razão social
+        cadastrada no KYC — então capricha no nome legal lá.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 4 ======================== -->
+    <section class="step">
+      <h2><span class="num">4</span> Pegar as API keys de produção</h2>
+
+      <p>
+        Depois que a conta foi aprovada (passo 1) e PIX/cartão estão ligados em
+        Live (passo 2), as Live keys ficam disponíveis.
+      </p>
+
+      <ol>
+        <li>
+          No dashboard, garanta que está em <span class="pill live">Live mode</span>.
+        </li>
+        <li>
+          <strong>Developers → API keys</strong> (ou
+          <a href="https://dashboard.stripe.com/apikeys"
+            >dashboard.stripe.com/apikeys</a
+          >).
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Você deve ver</span>
+        <p>
+          Duas chaves: <strong>Publishable key</strong>
+          (<code>pk_live_…</code>) e <strong>Secret key</strong>
+          (<code>sk_live_…</code>). Em test mode são <code>pk_test_</code> /
+          <code>sk_test_</code>.
+        </p>
+      </div>
+
+      <ol start="3">
+        <li>
+          Clica em <strong>"Reveal live key"</strong> no card da Secret key.
+        </li>
+        <li>
+          Copia ambas — guarda no seu gerenciador de senhas ou num arquivo de
+          notas seguro.
+        </li>
+      </ol>
+
+      <div class="callout danger">
+        A Secret key dá acesso TOTAL à sua conta Stripe — quem tiver essa chave
+        pode disparar pagamentos, refunds, ler todos os clientes. Nunca commita
+        no Git, nunca cola em chat público, nunca posta em screenshot. Se
+        vazar, gira no mesmo dashboard com "Roll key".
+      </div>
+
+      <p>
+        <strong>Anota:</strong>
+      </p>
+      <ul>
+        <li><code>STRIPE_SECRET_KEY = sk_live_...</code></li>
+        <li><code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = pk_live_...</code></li>
+      </ul>
+    </section>
+
+    <!-- ======================== PASSO 5 ======================== -->
+    <section class="step">
+      <h2><span class="num">5</span> Adicionar conta bancária para receber repasses</h2>
+
+      <p>
+        A Stripe transfere automaticamente seu saldo pra essa conta. É dali que
+        você puxa o dinheiro pra pagar as barbearias parceiras (PIX/TED
+        manual).
+      </p>
+
+      <ol>
+        <li>
+          Em Live mode, vai em
+          <strong>Settings → Payouts → Bank accounts and scheduling</strong>
+          (<a href="https://dashboard.stripe.com/settings/payouts"
+            >dashboard.stripe.com/settings/payouts</a
+          >).
+        </li>
+        <li>
+          Clica em <strong>"Add bank account"</strong>.
+        </li>
+        <li>
+          Preenche: banco, agência, número da conta, tipo (corrente/poupança).
+          Stripe Brasil aceita PIX e TED.
+        </li>
+        <li>
+          <strong>Schedule</strong>: escolhe <strong>Daily</strong>
+          (recomendado pra começar — fluxo de caixa rápido) ou
+          <strong>Weekly</strong> (todas as quartas, por exemplo).
+        </li>
+        <li>
+          Salva. Stripe pode enviar um depósito de centavos pra confirmar a
+          conta. Se acontecer, você confirma o valor exato pelo dashboard.
+        </li>
+      </ol>
+
+      <div class="callout">
+        Em Live mode novo, o primeiro payout costuma ter um <strong>delay de
+        7-14 dias</strong> (Stripe segura o dinheiro como anti-fraude). Depois
+        cai pra T+1 ou T+0 dependendo do volume.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 6 ======================== -->
+    <section class="step">
+      <h2><span class="num">6</span> Comprar/configurar domínio</h2>
+
+      <p>
+        Sem domínio, Stripe não aceita finalizar o KYC e Vercel só te dá uma
+        URL <code>.vercel.app</code> (que dá pra usar no curtíssimo prazo, mas
+        gera desconfiança no cliente).
+      </p>
+
+      <h3>6.1 Comprar (se ainda não tem)</h3>
+      <ul>
+        <li>
+          <strong>.com.br</strong>:
+          <a href="https://registro.br">https://registro.br</a> (~R$ 40/ano,
+          exige CPF ou CNPJ).
+        </li>
+        <li>
+          <strong>.com</strong>:
+          <a href="https://www.cloudflare.com/products/registrar/"
+            >Cloudflare Registrar</a
+          >
+          (preço de custo, sem markup) ou
+          <a href="https://www.namecheap.com">Namecheap</a>.
+        </li>
+      </ul>
+
+      <h3>6.2 Apontar pro Vercel (faz no passo 10)</h3>
+      <p>
+        Você só configura o DNS depois de criar o projeto na Vercel — quando
+        Vercel te diz exatamente qual <code>CNAME</code> ou <code>A record</code>
+        configurar. Por enquanto, só compra e guarda.
+      </p>
+
+      <div class="callout">
+        Sugestão de nome: <code>bt-barber.com.br</code>. Se já estiver
+        ocupado, <code>btbarber.com.br</code> ou <code>btbarber.app</code>.
+        Evita hífens no domínio raiz se possível — usuário escreve errado.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 7 ======================== -->
+    <section class="step">
+      <h2><span class="num">7</span> Subir código no GitHub</h2>
+
+      <p>
+        Vercel deploya direto do GitHub. Se o repo já está lá, pula pro passo 8.
+      </p>
+
+      <ol>
+        <li>
+          Em <a href="https://github.com/new">github.com/new</a>, cria um repo
+          <strong>privado</strong> chamado <code>bt-barber</code>.
+        </li>
+        <li>
+          Não inicializa com README/LICENSE — você já tem o código.
+        </li>
+        <li>
+          No terminal local, dentro de
+          <code>/Users/tecnologia/projetos/BT-Barber</code>:
+        </li>
+      </ol>
+
+      <pre><code>git remote add origin git@github.com:&lt;seu-usuario&gt;/bt-barber.git
+git branch -M main
+git push -u origin main</code></pre>
+
+      <div class="callout warn">
+        Antes de empurrar, confere que <code>.env</code> está no
+        <code>.gitignore</code>: <code>cat .gitignore | grep .env</code>. Se não
+        estiver, adiciona — <strong>sua secret key da Stripe não pode ir pro
+        GitHub.</strong>
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 8 ======================== -->
+    <section class="step">
+      <h2><span class="num">8</span> Importar projeto na Vercel</h2>
+
+      <ol>
+        <li>
+          <a href="https://vercel.com">vercel.com</a> → entra com a conta GitHub.
+        </li>
+        <li>
+          Topo da tela → <strong>"Add New" → "Project"</strong>.
+        </li>
+        <li>
+          Lista os repos do GitHub. Se o repo <code>bt-barber</code> não
+          aparece, clica em <strong>"Adjust GitHub App Permissions"</strong> e
+          dá acesso.
+        </li>
+        <li>
+          Localiza o <code>bt-barber</code> → clica em <strong>"Import"</strong>.
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Tela de configuração</span>
+        <p>
+          Vercel detecta Next.js automaticamente. <strong>Não mexe</strong> em
+          Build & Output Settings — defaults estão corretos.
+        </p>
+      </div>
+
+      <h3>8.1 Antes de clicar em Deploy</h3>
+      <p>
+        Não clica em Deploy ainda — primeiro adiciona as variáveis de ambiente
+        (passo 9), senão o build falha.
+      </p>
+
+      <p>
+        Expanda a seção <strong>"Environment Variables"</strong> abaixo de
+        Build Settings.
+      </p>
+    </section>
+
+    <!-- ======================== PASSO 9 ======================== -->
+    <section class="step">
+      <h2><span class="num">9</span> Configurar variáveis de ambiente na Vercel</h2>
+
+      <p>
+        Adiciona <strong>uma a uma</strong> usando o formulário "Key / Value"
+        e clicando em "Add" pra cada. Marque "All Environments" (Production,
+        Preview, Development) — não tem porque limitar ainda.
+      </p>
+
+      <h3>9.1 Gere os secrets primeiro</h3>
+      <p>No seu terminal local:</p>
+      <pre><code># Gera 2 secrets aleatórios — anota cada um
+openssl rand -hex 32   # → vai ser NEXTAUTH_SECRET
+openssl rand -hex 32   # → vai ser CRON_SECRET (outro, diferente)</code></pre>
+
+      <h3>9.2 Tabela de variáveis</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 30%">Nome</th>
+            <th style="width: 50%">Valor</th>
+            <th style="width: 20%">Origem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>DATABASE_URL</code></td>
+            <td>
+              <code
+                >postgresql://postgres.&lt;ref&gt;:&lt;senha&gt;@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true</code
+              >
+            </td>
+            <td>Mesmo do <code>.env</code> local</td>
+          </tr>
+          <tr>
+            <td><code>DIRECT_URL</code></td>
+            <td>
+              <code
+                >postgresql://postgres.&lt;ref&gt;:&lt;senha&gt;@aws-1-sa-east-1.pooler.supabase.com:5432/postgres</code
+              >
+            </td>
+            <td>Mesmo do <code>.env</code> local</td>
+          </tr>
+          <tr>
+            <td><code>GOOGLE_CLIENT_ID</code></td>
+            <td><code>&lt;numero&gt;-&lt;hash&gt;.apps.googleusercontent.com</code></td>
+            <td>Mesmo do <code>.env</code> local</td>
+          </tr>
+          <tr>
+            <td><code>GOOGLE_CLIENT_SECRET</code></td>
+            <td><code>GOCSPX-…</code></td>
+            <td>Mesmo do <code>.env</code> local</td>
+          </tr>
+          <tr>
+            <td><code>NEXTAUTH_URL</code></td>
+            <td><code>https://&lt;seu-dominio&gt;</code> (sem barra final)</td>
+            <td>Seu domínio do passo 6</td>
+          </tr>
+          <tr>
+            <td><code>NEXTAUTH_SECRET</code></td>
+            <td>O hex de 64 chars que você gerou</td>
+            <td><code>openssl rand -hex 32</code></td>
+          </tr>
+          <tr>
+            <td><code>STRIPE_SECRET_KEY</code></td>
+            <td><code>sk_live_…</code></td>
+            <td>Passo 4</td>
+          </tr>
+          <tr>
+            <td><code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code></td>
+            <td><code>pk_live_…</code></td>
+            <td>Passo 4</td>
+          </tr>
+          <tr>
+            <td><code>STRIPE_WEBHOOK_SECRET</code></td>
+            <td><code>whsec_…</code> (você ainda não tem — coloca placeholder e atualiza no passo 11)</td>
+            <td>Passo 11</td>
+          </tr>
+          <tr>
+            <td><code>CRON_SECRET</code></td>
+            <td>O segundo hex de 64 chars que você gerou</td>
+            <td><code>openssl rand -hex 32</code></td>
+          </tr>
+          <tr>
+            <td><code>PLATFORM_ADMIN_EMAILS</code></td>
+            <td><code>patrick.almeida@sttart.com.br</code></td>
+            <td>Seu email Google (o que loga no app)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout danger">
+        Sem <code>PLATFORM_ADMIN_EMAILS</code>, NINGUÉM consegue marcar payouts
+        para as barbearias. Esse é o ponto que decide quanto cada loja já
+        recebeu. Confirma que adicionou.
+      </div>
+
+      <div class="callout warn">
+        <code>NEXTAUTH_URL</code> sem barra final. Domínios com
+        <code>/</code> no final geram URLs <code>//api/…</code> que quebram OAuth
+        de forma intermitente.
+      </div>
+
+      <h3>9.3 Deploy inicial</h3>
+      <p>
+        Depois de adicionar todas, clica em <strong>"Deploy"</strong>. Vercel
+        builda o projeto. Deve passar em 2-4 minutos.
+      </p>
+
+      <p>
+        Se o build falhar com erro de Prisma <em>"Can't reach database
+        server"</em>, é porque o Supabase pooler IPv4 está bloqueado. Confirma
+        que <code>DATABASE_URL</code> usa
+        <code>aws-1-sa-east-1.pooler.supabase.com:6543</code> (não
+        <code>db.&lt;ref&gt;.supabase.co</code>).
+      </p>
+    </section>
+
+    <!-- ======================== PASSO 10 ======================== -->
+    <section class="step">
+      <h2><span class="num">10</span> Conectar domínio na Vercel</h2>
+
+      <ol>
+        <li>
+          No seu projeto na Vercel, vai em <strong>Settings → Domains</strong>.
+        </li>
+        <li>
+          No campo de input, digite o domínio (ex.: <code>bt-barber.com.br</code>)
+          e clica em <strong>"Add"</strong>.
+        </li>
+        <li>
+          Adiciona também <code>www.bt-barber.com.br</code> (Vercel cria
+          redirect automático).
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">O que Vercel mostra</span>
+        <p>
+          Vercel exibe os registros DNS que você precisa configurar no
+          provedor do domínio. Algo como:
+        </p>
+        <ul>
+          <li>
+            <strong>Apex (sem www)</strong>: <code>A</code> record apontando pra
+            <code>76.76.21.21</code>
+          </li>
+          <li>
+            <strong>www</strong>: <code>CNAME</code> apontando pra
+            <code>cname.vercel-dns.com</code>
+          </li>
+        </ul>
+      </div>
+
+      <h3>10.1 Configurar DNS no Registro.br</h3>
+      <ol>
+        <li>
+          Loga em <a href="https://registro.br">registro.br</a> → seu domínio.
+        </li>
+        <li>
+          <strong>"Editar DNS"</strong>.
+        </li>
+        <li>
+          Adiciona os registros que a Vercel passou. Salva.
+        </li>
+      </ol>
+
+      <p>
+        Propagação DNS pode levar de minutos a 24h. Geralmente são minutos.
+        Vercel atualiza o status quando reconhece. SSL (HTTPS) é emitido
+        automaticamente em ~5 min depois disso.
+      </p>
+
+      <div class="callout">
+        Se usa Cloudflare Registrar, o DNS já é automático na Cloudflare. No
+        painel deles → DNS → Add Record com os mesmos valores. Mas
+        <strong>desliga o proxy (nuvem laranja)</strong> nos registros — Vercel
+        não funciona com proxy do Cloudflare.
+      </div>
+
+      <h3>10.2 Atualizar NEXTAUTH_URL</h3>
+      <p>
+        Volta em <strong>Vercel → Settings → Environment Variables</strong> e
+        confirma que <code>NEXTAUTH_URL</code> está como
+        <code>https://bt-barber.com.br</code> (com o domínio real, sem barra
+        final). Se estava com a URL provisória <code>.vercel.app</code>, edita
+        e clica em <strong>"Save"</strong>. Vercel pede pra re-deployar — clica
+        em <strong>"Redeploy"</strong>.
+      </p>
+    </section>
+
+    <!-- ======================== PASSO 11 ======================== -->
+    <section class="step">
+      <h2><span class="num">11</span> Criar webhook da Stripe (modo Live)</h2>
+
+      <p>
+        Sem webhook, status de pagamento nunca chega no app — pedidos pagos
+        ficam pra sempre como PENDING. Faz isso depois que o domínio está
+        respondendo (passo 10 finalizado).
+      </p>
+
+      <ol>
+        <li>
+          Stripe dashboard em <span class="pill live">Live mode</span>.
+        </li>
+        <li>
+          <strong>Developers → Webhooks</strong> (ou
+          <a href="https://dashboard.stripe.com/webhooks"
+            >dashboard.stripe.com/webhooks</a
+          >).
+        </li>
+        <li>
+          <strong>"Add endpoint"</strong>.
+        </li>
+      </ol>
+
+      <h3>11.1 Preencher o formulário</h3>
+
+      <table>
+        <tbody>
+          <tr>
+            <th>Campo</th>
+            <th>Valor</th>
+          </tr>
+          <tr>
+            <td>Endpoint URL</td>
+            <td><code>https://&lt;seu-dominio&gt;/api/webhooks/stripe</code></td>
+          </tr>
+          <tr>
+            <td>Description</td>
+            <td><code>BT-Barber webhook (production)</code></td>
+          </tr>
+          <tr>
+            <td>Listen to</td>
+            <td><code>Events on your account</code></td>
+          </tr>
+          <tr>
+            <td>API version</td>
+            <td>Deixa o default (Stripe usa a sua versão da SDK)</td>
+          </tr>
+          <tr>
+            <td>Select events</td>
+            <td>
+              Marca <strong>exatamente</strong> esses 4:<br />
+              <code>payment_intent.succeeded</code><br />
+              <code>payment_intent.payment_failed</code><br />
+              <code>payment_intent.canceled</code><br />
+              <code>charge.refunded</code>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ol start="4">
+        <li>
+          <strong>"Add endpoint"</strong>.
+        </li>
+      </ol>
+
+      <h3>11.2 Pegar o signing secret</h3>
+      <ol>
+        <li>
+          Na tela do endpoint criado, role até a seção
+          <strong>"Signing secret"</strong>.
+        </li>
+        <li>
+          Clica em <strong>"Reveal"</strong> (ou "Click to reveal").
+        </li>
+        <li>
+          Copia o valor — começa com <code>whsec_</code>.
+        </li>
+      </ol>
+
+      <h3>11.3 Atualizar na Vercel</h3>
+      <ol>
+        <li>
+          Vercel → seu projeto → <strong>Settings → Environment Variables</strong>.
+        </li>
+        <li>
+          Localiza <code>STRIPE_WEBHOOK_SECRET</code> (você criou como
+          placeholder no passo 9).
+        </li>
+        <li>
+          Clica nos 3 pontinhos → <strong>Edit</strong> → cola o
+          <code>whsec_…</code>.
+        </li>
+        <li>
+          <strong>Save</strong>.
+        </li>
+        <li>
+          Vercel pede redeploy → <strong>Redeploy</strong>.
+        </li>
+      </ol>
+
+      <div class="callout">
+        Se você for ter ambiente <em>preview</em> separado depois, crie um
+        endpoint diferente na Stripe pra cada (com URL e secret próprios). Por
+        enquanto só prod basta.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 12 ======================== -->
+    <section class="step">
+      <h2><span class="num">12</span> Configurar redirect do Google OAuth</h2>
+
+      <p>
+        Login com Google só funciona em domínios cadastrados no Google Cloud
+        Console. Se esquecer disso, você loga em prod e vê erro
+        <em>"redirect_uri_mismatch"</em>.
+      </p>
+
+      <ol>
+        <li>
+          <a href="https://console.cloud.google.com">console.cloud.google.com</a>
+          → seleciona seu projeto (o mesmo onde criou o OAuth client).
+        </li>
+        <li>
+          <strong>APIs &amp; Services → Credentials</strong>.
+        </li>
+        <li>
+          Na lista <strong>OAuth 2.0 Client IDs</strong>, clica no client que
+          você usa (provavelmente "Web client 1").
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Tela de edição</span>
+        <p>
+          Mostra <strong>"Authorized JavaScript origins"</strong> e
+          <strong>"Authorized redirect URIs"</strong> com os endereços de dev
+          (<code>http://localhost:3000</code>).
+        </p>
+      </div>
+
+      <h3>12.1 Adicionar origens e redirects de produção</h3>
+      <ol>
+        <li>
+          Em <strong>Authorized JavaScript origins</strong>, clica em
+          <strong>"+ ADD URI"</strong> e adiciona:
+          <code>https://&lt;seu-dominio&gt;</code>
+        </li>
+        <li>
+          Em <strong>Authorized redirect URIs</strong>, clica em
+          <strong>"+ ADD URI"</strong> e adiciona:
+          <code>https://&lt;seu-dominio&gt;/api/auth/callback/google</code>
+        </li>
+        <li>
+          <strong>Save</strong> (botão azul no rodapé).
+        </li>
+      </ol>
+
+      <p>
+        Mantém os entries de <code>localhost</code> — você ainda vai usar pra
+        desenvolver.
+      </p>
+
+      <div class="callout warn">
+        Google às vezes leva 5-10 minutos pra propagar mudanças no OAuth. Se
+        ao testar login você ver erro mismatch, espera um pouco e tenta de
+        novo.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 13 ======================== -->
+    <section class="step">
+      <h2><span class="num">13</span> Preencher placeholders das páginas legais</h2>
+
+      <p>
+        As páginas <code>/termos</code>, <code>/privacidade</code> e
+        <code>/cancelamento</code> têm marcadores <code>[...]</code> que você
+        precisa trocar por dados reais antes de operar.
+      </p>
+
+      <h3>13.1 Lista de placeholders</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Arquivo</th>
+            <th>Placeholder</th>
+            <th>Substituir por</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="3"><code>app/termos/page.tsx</code></td>
+            <td><code>[Razão Social, CNPJ]</code></td>
+            <td>Ex.: <em>STTART Tecnologia LTDA, CNPJ 00.000.000/0001-00</em></td>
+          </tr>
+          <tr>
+            <td><code>[Endereço]</code></td>
+            <td>Endereço da sede</td>
+          </tr>
+          <tr>
+            <td><code>[Cidade/UF]</code></td>
+            <td>Sua cidade — foro de eleição em caso de disputa</td>
+          </tr>
+          <tr>
+            <td rowspan="2"><code>app/privacidade/page.tsx</code></td>
+            <td><code>[Razão Social, CNPJ]</code> e <code>[Endereço]</code></td>
+            <td>Mesmo dos termos</td>
+          </tr>
+          <tr>
+            <td><code>[Nome]</code> (do DPO)</td>
+            <td>Você mesmo, se MEI/sozinho. Caso contrário, alguém da equipe.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>13.2 E-mails citados</h3>
+      <p>
+        Os textos referenciam <code>contato@bt-barber.com.br</code> e
+        <code>dpo@bt-barber.com.br</code>. Você pode:
+      </p>
+      <ul>
+        <li>
+          <strong>Criar essas caixas</strong> (Google Workspace ~R$ 30/mês,
+          Zoho Mail tem plano grátis pra 5 usuários, Proton Mail também).
+        </li>
+        <li>
+          <strong>OU</strong> trocar pelo email real que você quer usar
+          (ex.: <code>patrick.almeida@sttart.com.br</code>).
+        </li>
+      </ul>
+
+      <h3>13.3 Commit + redeploy</h3>
+      <p>
+        Depois de editar:
+      </p>
+
+      <pre><code>git add app/termos/page.tsx app/privacidade/page.tsx app/cancelamento/page.tsx
+git commit -m "docs: preencher dados legais"
+git push</code></pre>
+
+      <p>
+        Vercel detecta o push e redeploya automaticamente. Confere as 3
+        páginas no domínio de prod depois.
+      </p>
+    </section>
+
+    <!-- ======================== PASSO 14 ======================== -->
+    <section class="step">
+      <h2><span class="num">14</span> Verificar Vercel Cron</h2>
+
+      <p>
+        O arquivo <code>vercel.json</code> que está no repo configura um cron
+        a cada 5 minutos batendo em <code>/api/cron/cleanup-bookings</code>.
+        Sem isso, slots abandonados pelo cliente ficam ocupados pra sempre.
+      </p>
+
+      <ol>
+        <li>
+          Vercel → seu projeto → <strong>Settings → Cron Jobs</strong>.
+        </li>
+      </ol>
+
+      <div class="screen">
+        <span class="label">Você deve ver</span>
+        <p>
+          Uma entrada listando <code>/api/cron/cleanup-bookings</code> com
+          schedule <code>*/5 * * * *</code> (every 5 minutes) e status
+          <strong>Active</strong>.
+        </p>
+      </div>
+
+      <ol start="2">
+        <li>
+          Se não aparecer: verifica que <code>vercel.json</code> está na raiz
+          do repo. Faz um redeploy via
+          <strong>Deployments → último deploy → "..."  → Redeploy</strong>.
+        </li>
+        <li>
+          Pra testar manualmente, clica nos 3 pontinhos do cron job →
+          <strong>"Trigger now"</strong>. Aparece nos logs em
+          <strong>Logs → seu cron</strong>. Resposta esperada:
+          <code>{"deleted": 0}</code>.
+        </li>
+      </ol>
+
+      <div class="callout">
+        Vercel injeta automaticamente o header
+        <code>Authorization: Bearer $CRON_SECRET</code> em jobs agendados,
+        então o handler aceita sem você precisar configurar nada extra.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 15 ======================== -->
+    <section class="step">
+      <h2><span class="num">15</span> Smoke test em produção</h2>
+
+      <p>
+        Última verificação antes de divulgar. Faz uma transação real de
+        baixíssimo valor pra exercitar todo o pipeline.
+      </p>
+
+      <h3>15.1 Cria um produto/serviço de teste</h3>
+      <ol>
+        <li>
+          Loga no app de prod com seu Google.
+        </li>
+        <li>
+          Vai em <strong>/admin/&lt;sua-loja&gt;/products</strong> e cria um
+          produto: nome <em>"Café teste"</em>, preço <strong>R$ 1,00</strong>,
+          estoque 5, qualquer imagem.
+        </li>
+      </ol>
+
+      <h3>15.2 Compra com cartão real</h3>
+      <ol>
+        <li>
+          Acessa a tela do cliente: <strong>/barbershop/&lt;sua-loja&gt;</strong>.
+        </li>
+        <li>
+          Aba <strong>"Loja"</strong> → adiciona o "Café teste" ao carrinho →
+          finaliza compra.
+        </li>
+        <li>
+          No checkout, escolhe <strong>Cartão</strong> e usa um cartão real
+          seu (NÃO usa o cartão de teste <code>4242…</code> em prod — só
+          funciona em test mode).
+        </li>
+        <li>
+          Paga.
+        </li>
+      </ol>
+
+      <h3>15.3 O que verificar</h3>
+
+      <ul class="checklist">
+        <li>
+          Email com recibo da Stripe chegou no seu Gmail (Stripe envia
+          automaticamente porque setamos <code>receipt_email</code>).
+        </li>
+        <li>
+          Em <strong>/orders</strong>, o pedido aparece com badge
+          <strong>PAGO</strong> e status <strong>CONFIRMED</strong>.
+        </li>
+        <li>
+          Em <strong>/admin/&lt;sua-loja&gt;/orders</strong>, o pedido está
+          listado e o owner pode mudar pra READY/COMPLETED.
+        </li>
+        <li>
+          Em <strong>/admin/&lt;sua-loja&gt;/payouts</strong>, "A receber"
+          subiu R$ 0,95 (R$ 1,00 menos 5% de fee da plataforma).
+        </li>
+        <li>
+          Em <strong>Vercel → Logs</strong>, aparece a entrada do webhook
+          (filtra por <code>scope:"stripe-webhook"</code> ou só vê o POST em
+          <code>/api/webhooks/stripe</code> retornando 200).
+        </li>
+        <li>
+          Em <strong>Stripe Dashboard → Payments</strong> em Live mode, o
+          pagamento aparece com status "Succeeded".
+        </li>
+      </ul>
+
+      <h3>15.4 Testa cancelamento + estorno</h3>
+      <ol>
+        <li>
+          Volta em <strong>/orders</strong>, clica em
+          <strong>"Cancelar"</strong>.
+        </li>
+      </ol>
+
+      <ul class="checklist">
+        <li>
+          Toast diz <em>"Estorno de R$ 0,95 processado"</em>.
+        </li>
+        <li>
+          Em ~30s, status do Payment vira <strong>REFUNDED</strong> em
+          <strong>/admin/&lt;sua-loja&gt;/orders</strong> (o webhook
+          <code>charge.refunded</code> processou).
+        </li>
+        <li>
+          Stock do produto voltou pra 5 (vai em
+          <strong>/admin/&lt;sua-loja&gt;/products</strong> e confere).
+        </li>
+        <li>
+          Em 2-7 dias o R$ 0,95 volta no extrato do cartão.
+        </li>
+      </ul>
+
+      <div class="callout">
+        Se algum item falhar, primeiro lugar pra investigar é
+        <strong>Vercel Logs</strong> filtrando por
+        <code>"level":"error"</code>. Os logs estão em formato JSON
+        estruturado, então dá pra usar o filtro built-in da Vercel.
+      </div>
+    </section>
+
+    <!-- ======================== PASSO 16 ======================== -->
+    <section class="step">
+      <h2><span class="num">16</span> Hardening pós-launch (recomendado)</h2>
+
+      <p>
+        Não bloqueia o lançamento, mas é forte recomendação fazer na primeira
+        semana.
+      </p>
+
+      <h3>16.1 Sentry (monitoramento de erros)</h3>
+      <p>
+        Sem Sentry, erro de webhook é descoberto quando cliente reclama. Com
+        Sentry, você recebe email/Slack na hora.
+      </p>
+      <ol>
+        <li>
+          <a href="https://sentry.io">sentry.io</a> → cria conta (free tier dá
+          5k erros/mês).
+        </li>
+        <li>
+          Cria projeto Next.js. Sentry te dá um DSN
+          (<code>https://&lt;public&gt;@&lt;org&gt;.ingest.sentry.io/&lt;id&gt;</code>).
+        </li>
+        <li>
+          No terminal local: <code>pnpm add @sentry/nextjs</code>.
+        </li>
+        <li>
+          <code>npx @sentry/wizard@latest -i nextjs</code> — segue o wizard.
+        </li>
+        <li>
+          No <code>app/_lib/log.ts</code>, troque <code>console.error</code>
+          por <code>Sentry.captureException</code>. Os call sites continuam
+          iguais.
+        </li>
+        <li>
+          Adiciona <code>SENTRY_DSN</code> nas envs da Vercel.
+        </li>
+        <li>
+          Commit + push + redeploy.
+        </li>
+      </ol>
+
+      <h3>16.2 Backups do Supabase</h3>
+      <p>
+        Free tier dá só 7 dias de backup diário. Sem PITR (Point-In-Time
+        Recovery), recuperar de uma corrupção é doloroso.
+      </p>
+      <ol>
+        <li>
+          <a href="https://supabase.com/dashboard/project/_/settings/billing"
+            >Supabase → Settings → Billing</a
+          >.
+        </li>
+        <li>
+          Upgrade pro <strong>Pro</strong> (US$ 25/mês). Habilita
+          <strong>PITR</strong> de 7 dias.
+        </li>
+      </ol>
+
+      <h3>16.3 Aumentar limite de transação</h3>
+      <p>
+        Stripe Brasil novas contas começam com limite de ~R$ 5k/mês. Após 30
+        dias com transações limpas (sem chargebacks), peça aumento em
+        <strong>Settings → Limits → Request limit increase</strong>.
+      </p>
+
+      <h3>16.4 Configurar alertas no Stripe</h3>
+      <ol>
+        <li>
+          <strong>Settings → Team → Notifications</strong>.
+        </li>
+        <li>
+          Marca <strong>"Disputed payments"</strong> e
+          <strong>"Failed payouts"</strong>.
+        </li>
+        <li>
+          Define o email de alerta.
+        </li>
+      </ol>
+
+      <h3>16.5 NFe (futuro)</h3>
+      <p>
+        Stripe Brasil <strong>não emite nota fiscal</strong>. Pra MVP dá pra
+        operar sem, mas algum cliente vai pedir comprovante fiscal eventualmente.
+        Quando isso acontecer, integre com <a href="https://nfe.io">NFe.io</a>
+        ou <a href="https://www.enotas.com.br">eNotas</a> via webhook (gera NFe
+        de serviço a cada <code>charge.succeeded</code>).
+      </p>
+    </section>
+
+    <!-- ======================== APÊNDICE ======================== -->
+    <section class="step">
+      <h2>Apêndice — Recovery em caso de problema</h2>
+
+      <h3>Webhook não chega</h3>
+      <ul>
+        <li>
+          Stripe Dashboard → <strong>Developers → Webhooks → seu endpoint →
+          aba "Events"</strong>: mostra todas as tentativas. Se aparece
+          status 4xx/5xx, clica no evento pra ver o body da resposta.
+        </li>
+        <li>
+          Causas comuns: <code>STRIPE_WEBHOOK_SECRET</code> errado na Vercel
+          (signature mismatch → 400), domínio não respondendo (timeout),
+          handler levantando exception (500).
+        </li>
+        <li>
+          Pra reprocessar manualmente:
+          <strong>Webhook → Events → click no evento → "Resend"</strong>.
+        </li>
+      </ul>
+
+      <h3>Pagamento ficou stuck em PENDING</h3>
+      <ul>
+        <li>
+          Confere se o webhook chegou (passo acima). Se não chegou, é o
+          motivo.
+        </li>
+        <li>
+          O app tem polling fallback de 3s — abre o pedido em
+          <strong>/orders</strong>, espera ~10s, deve atualizar mesmo sem
+          webhook.
+        </li>
+        <li>
+          Manual: Stripe Dashboard → Payment → "Refund" se o cliente nunca foi
+          atendido.
+        </li>
+      </ul>
+
+      <h3>Saldo Stripe ≠ "A receber" no admin</h3>
+      <ul>
+        <li>
+          Saldo Stripe é o que sobrou após payouts pra sua conta bancária. "A
+          receber" no app é o que você deve às barbearias.
+        </li>
+        <li>
+          Reconciliação: <strong>Stripe → Reports → Payments</strong> exporta
+          CSV. Compara com a tabela <code>Payment</code> via Prisma Studio.
+        </li>
+      </ul>
+
+      <h3>Cliente perdeu dinheiro (pagou e não foi atendido)</h3>
+      <ul>
+        <li>
+          Owner cancela o pedido pelo app — refund automático sai.
+        </li>
+        <li>
+          OU você manualmente: Stripe Dashboard → Payment → Refund (full ou
+          partial).
+        </li>
+      </ul>
+
+      <hr />
+
+      <p class="small">
+        Documento gerado por Claude Code para Patrick · BT-Barber v0.1.0 ·
+        Maio de 2026.
+      </p>
+    </section>
+  </body>
+</html>

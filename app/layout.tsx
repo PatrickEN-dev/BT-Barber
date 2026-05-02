@@ -5,6 +5,7 @@ import Footer from "./_components/Footer";
 import AuthProvider from "./_providers/auth";
 import { LoadingProvider } from "./_providers/loading";
 import ThemeProvider from "./_providers/theme";
+import TermsGate from "./_components/TermsGate";
 import { Toaster } from "./_components/ui/sonner";
 import ThemeSync from "./_components/ThemeSync";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: IChildrenComponent) {
           <LoadingProvider>
             <AuthProvider>
               <ThemeSync />
+              <TermsGate />
               {children}
               <Footer />
               <Toaster />

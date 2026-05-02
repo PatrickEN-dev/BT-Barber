@@ -20,6 +20,8 @@ export const authOptions: AuthOptions = {
         select: {
           role: true,
           theme: true,
+          termsAcceptedAt: true,
+          termsVersion: true,
           ownedShops: { select: { id: true }, take: 1 },
           barberProfile: { select: { id: true, barbershopId: true } },
         },
@@ -30,6 +32,8 @@ export const authOptions: AuthOptions = {
         id: user.id,
         role: dbUser?.role ?? "CUSTOMER",
         theme: dbUser?.theme ?? "SYSTEM",
+        termsAcceptedAt: dbUser?.termsAcceptedAt?.toISOString() ?? null,
+        termsVersion: dbUser?.termsVersion ?? null,
         capabilities: {
           isOwner: (dbUser?.ownedShops?.length ?? 0) > 0,
           isBarber: !!dbUser?.barberProfile,

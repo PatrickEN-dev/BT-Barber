@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/app/_lib/auth";
 import { audit } from "@/app/_lib/audit";
+import { logError } from "@/app/_lib/log";
 import { db } from "@/app/_lib/prisma";
 import { rateLimit } from "@/app/_lib/rateLimit";
 import { serializePayment, type SerializedPayment } from "@/app/_lib/serializers";
@@ -149,6 +150,10 @@ export const createOrderCheckout = async (
     currency: "brl",
     description,
     payment_method_types: input.method === "PIX" ? ["pix"] : ["card"],
+    // Stripe sends an automatic email receipt to this address on success
+    // (works for cards in BR; for PIX, customers also get the QR receipt
+    // through us, but having Stripe's receipt as backup is harmless).
+    ...(session.user.email ? { receipt_email: session.user.email } : {}),
     metadata: {
       orderId: order.id,
       barbershopId: order.barbershopId,
@@ -269,7 +274,7 @@ export const getPaymentStatus = async (paymentId: string): Promise<SerializedPay
         return serializePayment(updated);
       }
     } catch (err) {
-      console.error("[payment] polling Stripe failed:", err);
+      logError("payment", err, { phase: "polling-stripe", paymentId: payment.id });
     }
   }
 
@@ -344,6 +349,7 @@ export const createBookingCheckout = async (
       booking.services.length === 1 ? "" : "s"
     }`,
     payment_method_types: input.method === "PIX" ? ["pix"] : ["card"],
+    ...(session.user.email ? { receipt_email: session.user.email } : {}),
     metadata: {
       bookingId: booking.id,
       barbershopId: booking.barbershopId,
@@ -524,18 +530,23 @@ export const cancelBookingWithRefund = async (
   );
 
   // Issue partial/full refund via Stripe (skipped if tier=NONE).
+  // Idempotency key keyed on the booking — re-clicking cancel doesn't issue
+  // a duplicate refund (Stripe returns the original refund object).
   if (refund.refundCents > 0 && booking.payment.externalId) {
-    await stripe.refunds.create({
-      payment_intent: booking.payment.externalId,
-      amount: refund.refundCents,
-      reason: "requested_by_customer",
-      metadata: {
-        bookingId,
-        tier: refund.tier,
-        shopFeeCents: String(refund.shopFeeCents),
-        platformFeeCents: String(refund.platformFeeCents),
+    await stripe.refunds.create(
+      {
+        payment_intent: booking.payment.externalId,
+        amount: refund.refundCents,
+        reason: "requested_by_customer",
+        metadata: {
+          bookingId,
+          tier: refund.tier,
+          shopFeeCents: String(refund.shopFeeCents),
+          platformFeeCents: String(refund.platformFeeCents),
+        },
       },
-    });
+      { idempotencyKey: `booking-cancel-${bookingId}` }
+    );
     // Webhook will mark Payment as REFUNDED/PARTIAL_REFUND. We don't update
     // the row here to avoid race conditions with the webhook.
   }
@@ -607,8 +618,13 @@ export const markBookingNoShow = async (bookingId: string) => {
 
 /**
  * Owner-initiated refund (override). For exceptional cases — e.g. they want
- * to give a full refund despite the policy saying half. Always full refund
- * for now (could expose partial later).
+ * to give a full refund despite the policy saying half. Refunds the full
+ * remaining balance (subtotal + platform fee — owner is overriding policy,
+ * so they eat the platform fee too if Stripe allows).
+ *
+ * Side effects: also cancels the linked Order (with restock) or deletes the
+ * linked Booking (frees the slot). Without these, the owner-refunded order
+ * would stay listed as CONFIRMED and confuse staff.
  */
 export const refundPaymentByOwner = async (paymentId: string, reason?: string) => {
   const session = await getServerSession(authOptions);
@@ -616,7 +632,10 @@ export const refundPaymentByOwner = async (paymentId: string, reason?: string) =
 
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
-    include: { barbershop: { select: { ownerId: true } } },
+    include: {
+      barbershop: { select: { ownerId: true } },
+      order: { include: { items: true } },
+    },
   });
   if (!payment) throw new Error("Pagamento não encontrado.");
   if (payment.barbershop.ownerId !== session.user.id) throw new UnauthorizedError();
@@ -633,25 +652,54 @@ export const refundPaymentByOwner = async (paymentId: string, reason?: string) =
     toStripeAmount(payment.refundedAmount.toString());
   if (remainingCents <= 0) throw new Error("Já estornado integralmente.");
 
-  await stripe.refunds.create({
-    payment_intent: payment.externalId,
-    amount: remainingCents,
-    reason: "requested_by_customer",
-    metadata: { paymentId, ownerOverride: "true", reason: reason ?? "" },
-  });
+  await stripe.refunds.create(
+    {
+      payment_intent: payment.externalId,
+      amount: remainingCents,
+      reason: "requested_by_customer",
+      metadata: { paymentId, ownerOverride: "true", reason: reason ?? "" },
+    },
+    { idempotencyKey: `owner-refund-${paymentId}` }
+  );
+  // Webhook handleChargeRefunded will flip Payment.status to REFUNDED.
 
-  // Webhook will update status to REFUNDED.
+  // Cancel the underlying Order (restock + status flip) so the owner doesn't
+  // see a "CONFIRMED" order that was actually refunded. Conditional on status
+  // != CANCELLED so a re-run is idempotent. For Bookings, we delete the row
+  // to free the slot — same as the customer-initiated cancel flow.
+  if (payment.order && payment.order.status !== "CANCELLED" && payment.order.status !== "COMPLETED") {
+    await db.$transaction(async (tx) => {
+      const flip = await tx.order.updateMany({
+        where: { id: payment.orderId!, status: { not: "CANCELLED" } },
+        data: { status: "CANCELLED" },
+      });
+      if (flip.count === 0) return;
+      for (const item of payment.order!.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    });
+  }
+  if (payment.bookingId) {
+    // Delete to free the slot. onDelete:SetNull on Payment.bookingId means
+    // the Payment row stays for accounting.
+    await db.booking.deleteMany({ where: { id: payment.bookingId } });
+  }
 
   revalidatePath(`/admin/${payment.barbershopId}/orders`);
   revalidatePath(`/admin/${payment.barbershopId}/bookings`);
+  revalidatePath("/orders");
+  revalidatePath("/bookings");
 
   await audit({
     userId: session.user.id,
-    action: "ORDER_CANCEL",
+    action: payment.orderId ? "ORDER_CANCEL" : "BOOKING_CANCEL",
     barbershopId: payment.barbershopId,
-    targetType: "Order",
+    targetType: payment.orderId ? "Order" : "Booking",
     targetId: payment.orderId ?? payment.bookingId ?? "",
-    metadata: { paymentId, ownerRefund: true, reason },
+    metadata: { paymentId, ownerRefund: true, reason, refundedCents: remainingCents },
   });
 };
 

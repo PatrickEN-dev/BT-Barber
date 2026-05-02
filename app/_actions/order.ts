@@ -6,12 +6,14 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/app/_lib/auth";
 import { audit } from "@/app/_lib/audit";
+import { logError } from "@/app/_lib/log";
 import { db } from "@/app/_lib/prisma";
 import { rateLimit } from "@/app/_lib/rateLimit";
 import {
   serializeOrderWithRelations,
   type SerializedOrderWithRelations,
 } from "@/app/_lib/serializers";
+import { stripe, toStripeAmount } from "@/app/_lib/stripe";
 
 import {
   EmptyCartError,
@@ -138,7 +140,19 @@ export const findShopOrders = async (
 
 const CANCELLABLE_STATUSES: OrderStatus[] = ["PENDING", "CONFIRMED"];
 
-export const cancelOrder = async (orderId: string) => {
+/**
+ * Cancel an order. Restocks the line items and, if the customer had already
+ * paid, issues a Stripe refund for the shop's portion (subtotal). The platform
+ * fee is always retained.
+ *
+ * Refund is issued BEFORE the local DB mutation so a Stripe failure aborts
+ * the cancel and the customer can retry. If the local mutation later fails
+ * after a successful refund, we have an audited refund-without-cancel state
+ * that operators can reconcile via Stripe Dashboard + AuditLog.
+ */
+export const cancelOrder = async (
+  orderId: string
+): Promise<{ refundedCents: number }> => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new UnauthorizedError();
 
@@ -147,52 +161,97 @@ export const cancelOrder = async (orderId: string) => {
     windowMs: 60_000,
   });
 
-  const cancelledOrder = await db.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { items: true, barbershop: true },
-    });
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, barbershop: true, payment: true },
+  });
+  if (!order) throw new Error("Pedido não encontrado.");
 
-    if (!order) throw new Error("Pedido não encontrado.");
+  const isOwner = order.barbershop.ownerId === session.user.id;
+  const isClient = order.userId === session.user.id;
+  if (!isOwner && !isClient) throw new UnauthorizedError();
 
-    const isOwner = order.barbershop.ownerId === session.user.id;
-    const isClient = order.userId === session.user.id;
-    if (!isOwner && !isClient) throw new UnauthorizedError();
+  if (!CANCELLABLE_STATUSES.includes(order.status) && order.status !== "READY") {
+    throw new OrderNotCancellableError();
+  }
+  if (order.status === "READY" && !isOwner) {
+    throw new OrderNotCancellableError();
+  }
+  if (order.status === "CANCELLED") return { refundedCents: 0 }; // idempotent
 
-    if (!CANCELLABLE_STATUSES.includes(order.status) && order.status !== "READY") {
-      throw new OrderNotCancellableError();
-    }
-    if (order.status === "READY" && !isOwner) {
-      throw new OrderNotCancellableError();
-    }
-
-    if (order.status !== "CANCELLED" && order.status !== "COMPLETED") {
-      for (const item of order.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
-        });
+  // If the order was paid, refund the subtotal (shop's portion). Platform fee
+  // is always retained. Webhook will flip Payment.status to REFUNDED.
+  let refundedCents = 0;
+  if (
+    order.payment &&
+    order.payment.status === "PAID" &&
+    order.payment.externalId
+  ) {
+    const subtotalCents = toStripeAmount(order.payment.subtotalAmount.toString());
+    const alreadyRefundedCents = toStripeAmount(order.payment.refundedAmount.toString());
+    refundedCents = Math.max(0, subtotalCents - alreadyRefundedCents);
+    if (refundedCents > 0) {
+      try {
+        await stripe.refunds.create(
+          {
+            payment_intent: order.payment.externalId,
+            amount: refundedCents,
+            reason: "requested_by_customer",
+            metadata: {
+              orderId,
+              cancelledBy: isOwner ? "owner" : "customer",
+            },
+          },
+          { idempotencyKey: `order-cancel-${orderId}` }
+        );
+      } catch (err) {
+        logError("order-cancel", err, { orderId, paymentId: order.payment.id });
+        throw new Error(
+          "Não foi possível processar o estorno. Tente novamente em instantes."
+        );
       }
     }
+  }
 
-    await tx.order.update({
-      where: { id: orderId },
+  // Conditional update: only restock if WE are the ones flipping status to
+  // CANCELLED. Prevents double-restock if two parallel cancel calls race
+  // (e.g., customer + owner clicking simultaneously). updateMany returns
+  // count=0 if status was already CANCELLED.
+  const flipped = await db.$transaction(async (tx) => {
+    const update = await tx.order.updateMany({
+      where: { id: orderId, status: { not: "CANCELLED" } },
       data: { status: "CANCELLED" },
     });
+    if (update.count === 0) return false; // someone else already cancelled
 
-    return { barbershopId: order.barbershopId };
+    for (const item of order.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } },
+      });
+    }
+    return true;
   });
 
+  if (!flipped) return { refundedCents }; // idempotent path — already cancelled
+
   revalidatePath("/orders");
-  revalidatePath("/admin");
+  revalidatePath(`/admin/${order.barbershopId}/orders`);
 
   await audit({
     userId: session.user.id,
     action: "ORDER_CANCEL",
-    barbershopId: cancelledOrder.barbershopId,
+    barbershopId: order.barbershopId,
     targetType: "Order",
     targetId: orderId,
+    metadata: {
+      cancelledBy: isOwner ? "owner" : "customer",
+      refundedCents,
+      hadPaidPayment: order.payment?.status === "PAID",
+    },
   });
+
+  return { refundedCents };
 };
 
 export const updateOrderStatus = async (orderId: string, status: OrderStatus) => {

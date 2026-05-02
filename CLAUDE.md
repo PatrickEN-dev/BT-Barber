@@ -144,7 +144,7 @@ Both `Order` (lojinha) and `Booking` (serviço) support online payment via **PIX
 - `markBookingNoShow(bookingId)` — owner-only, post-booking-time. Sets `Booking.noShow = true`, retains 100% of payment as no-show fee.
 - `refundPaymentByOwner(paymentId)` — manual override for owners; refunds whatever's left after partial refunds.
 - `getShopBalance(shopId)` — owner-facing aggregation: `pendingBRL` = `totalEarned - totalPaidOut`. Used by `/admin/[shopId]/payouts` page.
-- `recordPayout({barbershopId, amountBRL, notes})` — records an out-of-band transfer from platform to shop. Currently gated by `requireOwnerOf` (weak — replace with platform-admin role gate when added).
+- `recordPayout({barbershopId, amountBRL, notes})` — records an out-of-band transfer from platform to shop. **Platform-admin only** — gated via `requirePlatformAdmin()` ([app/_lib/platformAdmin.ts](app/_lib/platformAdmin.ts)) which checks the session email against the `PLATFORM_ADMIN_EMAILS` allowlist (comma-separated env var). Shop owners must NOT be allowed to record their own payouts (would let them zero out their pending balance without ever receiving a transfer).
 
 **Webhook** ([app/api/webhooks/stripe/route.ts](app/api/webhooks/stripe/route.ts)):
 - Endpoint: `/api/webhooks/stripe`. Verifies HMAC signature with `STRIPE_WEBHOOK_SECRET`.
@@ -158,7 +158,7 @@ Both `Order` (lojinha) and `Booking` (serviço) support online payment via **PIX
 **Hold cleanup** ([app/api/cron/cleanup-bookings/route.ts](app/api/cron/cleanup-bookings/route.ts)):
 - Deletes bookings where `holdUntil < now()` AND no payment confirmed.
 - Auth: `Authorization: Bearer $CRON_SECRET` header.
-- Schedule: ideally every 5 minutes. Can be wired up via Vercel Cron, GitHub Actions schedule, or any external scheduler. Without a scheduler, slots stay held until manually cleaned (call the endpoint via curl).
+- Scheduled by [vercel.json](vercel.json) every 5 minutes (`*/5 * * * *`). Vercel auto-injects `Authorization: Bearer ${CRON_SECRET}` on scheduled runs when the env var is set, so the route handler's bearer check works out of the box on Vercel. On other hosts, point any cron (cron-job.org, GitHub Actions, etc.) at `/api/cron/cleanup-bookings` with the same header.
 
 **UI** ([app/_components/checkout/](app/_components/checkout/)):
 - `<CheckoutDialog>` — modal with PIX/Cartão tabs. Generic over `kind: "order" | "booking"` + `targetId`. Shows the fee breakdown above the tabs by calling `quoteCheckoutFee` on open.
@@ -184,8 +184,13 @@ Per-shop overrides are a future feature.
 - `STRIPE_SECRET_KEY` (`sk_test_*` / `sk_live_*`)
 - `STRIPE_WEBHOOK_SECRET` (`whsec_*` from `stripe listen` in dev, or from Dashboard > Webhooks in prod)
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_test_*` / `pk_live_*`)
-- `CRON_SECRET` — bearer token for `/api/cron/*` endpoints. Generate with `openssl rand -hex 32`.
+- `CRON_SECRET` — bearer token for `/api/cron/*` endpoints. Generate with `openssl rand -hex 32`. On Vercel, setting this is enough — Vercel cron auto-attaches the header.
+- `PLATFORM_ADMIN_EMAILS` — comma-separated allowlist of platform-admin emails. Required for `recordPayout` to work in prod.
 - CSP in `next.config.mjs` allows `js.stripe.com`, `api.stripe.com`, `hooks.stripe.com`, `m.stripe.network`. Don't remove without verifying card flow.
+
+**Legal pages.** [app/termos/page.tsx](app/termos/page.tsx), [app/privacidade/page.tsx](app/privacidade/page.tsx), and [app/cancelamento/page.tsx](app/cancelamento/page.tsx) all share [app/(legal)/_components/LegalPage.tsx](app/(legal)/_components/LegalPage.tsx) which provides the typography wrapper. Linked from `<CheckoutDialog>` (privacy + terms before pay button, cancellation policy collapsible) and the global `<Footer>`. Placeholders inside `[...]` (CNPJ, razão social, foro, e-mails de DPO/contato) need to be filled before going live.
+
+**Logging** ([app/_lib/log.ts](app/_lib/log.ts)). `logError(scope, err, context?)` / `logWarn(scope, msg, context?)` emit single-line JSON for Vercel/Datadog log search. Used by `stripe-webhook`, `payment` (polling fallback). Replace with Sentry by swapping the implementation here — call sites stay the same.
 
 **Future: Stripe Connect migration.** When 5+ active shops or R$5k+/month volume:
 1. Add `Barbershop.stripeAccountId String?` (Connect Express account id)

@@ -59,6 +59,14 @@ model User {
   image         String?
   role          UserRole           @default(CUSTOMER)
   theme         Theme              @default(SYSTEM)
+  // Set when the user accepts the platform's terms (Termos + Privacidade +
+  // Cancelamento). NULL = not yet accepted; the TermsGate modal blocks app
+  // usage until the user clicks "Concordar".
+  termsAcceptedAt DateTime?
+  // Version of the terms accepted (e.g. "1.0"). When terms change in a
+  // material way, bump TERMS_VERSION in app/_lib/terms.ts and the gate
+  // re-prompts users whose stored version differs.
+  termsVersion  String?
   accounts      Account[]
   sessions      Session[]
   Booking       Booking[]
