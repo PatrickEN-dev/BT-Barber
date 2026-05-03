@@ -85,14 +85,14 @@ const CancelamentoPage = () => (
     </p>
     <p>
       Para exercer o direito, escreva para{" "}
-      <strong>contato@bt-barber.com.br</strong> com o número da reserva/pedido e a
+      <strong>patrickandreia2505@gmail.com</strong> com o número da reserva/pedido e a
       solicitação.
     </p>
 
     <h2>Disputas e contato</h2>
     <p>
       Em caso de divergência sobre um cancelamento, abra um chamado em{" "}
-      <strong>contato@bt-barber.com.br</strong>. Respondemos em até 5 dias úteis. Se não
+      <strong>patrickandreia2505@gmail.com</strong>. Respondemos em até 5 dias úteis. Se não
       for solucionado, você pode registrar reclamação em{" "}
       <a
         href="https://www.consumidor.gov.br"

@@ -17,9 +17,9 @@ const TermosPage = () => (
 
     <h2>1. Quem somos</h2>
     <p>
-      A BT-Barber é operada por <strong>[Razão Social, CNPJ]</strong>, com sede em{" "}
-      <strong>[Endereço]</strong>. Nosso contato oficial é{" "}
-      <strong>contato@bt-barber.com.br</strong>.
+      A BT-Barber é operada por <strong>Patrick Almeida, CPF 450.278.988-78</strong>, com sede em{" "}
+      <strong>Botucatu/SP</strong>. Nosso contato oficial é{" "}
+      <strong>patrickandreia2505@gmail.com</strong>.
     </p>
 
     <h2>2. O que a Plataforma faz</h2>
@@ -109,7 +109,7 @@ const TermosPage = () => (
     <h2>10. Encerramento da conta</h2>
     <p>
       Você pode solicitar a exclusão da sua conta a qualquer momento via{" "}
-      <strong>contato@bt-barber.com.br</strong>. Reservas ou pedidos passados ficam
+      <strong>patrickandreia2505@gmail.com</strong>. Reservas ou pedidos passados ficam
       registrados pelo prazo legal para fins de auditoria fiscal.
     </p>
 
@@ -121,7 +121,7 @@ const TermosPage = () => (
 
     <h2>12. Foro</h2>
     <p>
-      Fica eleito o foro da comarca de <strong>[Cidade/UF]</strong>, com renúncia
+      Fica eleito o foro da comarca de <strong>Botucatu/SP</strong>, com renúncia
       expressa a qualquer outro, para dirimir disputas oriundas destes Termos.
     </p>
   </LegalPage>

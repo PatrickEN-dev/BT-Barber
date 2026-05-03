@@ -12,15 +12,15 @@ const PrivacidadePage = () => (
   <LegalPage title="Política de Privacidade" updatedAt="01/05/2026">
     <p>
       Esta Política descreve como a BT-Barber (operada por{" "}
-      <strong>[Razão Social, CNPJ]</strong>) coleta, usa e protege seus dados pessoais,
+      <strong>Patrick Almeida, CPF 450.278.988-78</strong>) coleta, usa e protege seus dados pessoais,
       em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018).
     </p>
 
     <h2>1. Controlador e contato do encarregado</h2>
     <p>
-      <strong>Controlador:</strong> [Razão Social, CNPJ]
+      <strong>Controlador:</strong> Patrick Almeida, CPF 450.278.988-78
       <br />
-      <strong>Encarregado (DPO):</strong> [Nome] — <strong>dpo@bt-barber.com.br</strong>
+      <strong>Encarregado (DPO):</strong> Patrick Almeida — <strong>patrickandreia2505@gmail.com</strong>
     </p>
 
     <h2>2. Dados que coletamos</h2>
@@ -136,7 +136,7 @@ const PrivacidadePage = () => (
     </ul>
     <p>
       Para exercer seus direitos, escreva para{" "}
-      <strong>dpo@bt-barber.com.br</strong>. Respondemos em até 15 dias.
+      <strong>patrickandreia2505@gmail.com</strong>. Respondemos em até 15 dias.
     </p>
 
     <h2>8. Cookies</h2>
